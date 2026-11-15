@@ -304,6 +304,9 @@ fieldset.field { border: 0; margin: 0 0 16px; padding: 0; }
 .guide { position: fixed; z-index: 45; right: 24px; bottom: 24px; display: flex; flex-direction: row-reverse; align-items: flex-end; gap: 12px; max-width: min(420px, calc(100vw - 48px)); }
 .guide[hidden] { display: none; }
 body[data-stage="launch"] .guide { right: auto; left: 24px; flex-direction: row; }
+/* first look outside: the guide steps aside so the continue button stays clear */
+body.outside-on .guide { left: auto; right: 24px; flex-direction: row-reverse; }
+.outside { cursor: pointer; }
 body[data-stage="intro"] .guide { max-width: min(380px, calc(100vw - 48px)); }
 .guide-avatar { width: 64px; height: 64px; flex: none; border-radius: 50%; background: var(--panel); border: 1px solid var(--line-strong); display: grid; place-items: center; padding: 4px; transition: border-color var(--dur-short); }
 .guide-avatar:hover { border-color: var(--world); }

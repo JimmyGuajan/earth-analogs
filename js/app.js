@@ -457,19 +457,20 @@
     $("#outTitle").textContent = O.title(site.name.split(" – ")[0]);
     $("#outCap").textContent = ph ? O.photo(ph.author, ph.license) : O.sat;
     $("#outGo").textContent = O.go;
-    $("#outside").hidden = false;
+    $("#outside").hidden = false; document.body.classList.add("outside-on");
   }
   function waitButton(btn, ms) {
     return new Promise(res => {
       const done = how => { btn.onclick = null; res(how); };
-      btn.onclick = () => done("click");
+      btn.onclick = e => { e.stopPropagation(); done("click"); };
+      if (btn.id === "outGo") $("#outside").onclick = () => { $("#outside").onclick = null; done("click"); }; // a tap anywhere on the photo continues
       if (ms) pause(ms).then(() => done("time"));
       else if (run) { if (run.skipped) done("skip"); else run.waits.push(() => done("skip")); }
     });
   }
   function endJourney() {
     $("#touchdown").hidden = true; hud(false); $("#terminal").hidden = true; $("#skipBtn").hidden = true; $("#countdown").hidden = true;
-    $("#outside").hidden = true; $("#windowPhoto").classList.remove("on"); $("#windowPhoto").hidden = true;
+    $("#outside").hidden = true; document.body.classList.remove("outside-on"); $("#windowPhoto").classList.remove("on"); $("#windowPhoto").hidden = true;
     $("#hatch").className = "hatch"; $("#cockpit").classList.remove("on");
     warp(false); SFX.humStop(); $("#plasma").classList.remove("on"); $("#flash").classList.remove("on");
     $("#ship").getAnimations().forEach(a => a.cancel());
@@ -712,7 +713,7 @@
     $("#outTitle").textContent = T().outside.title(tName);
     $("#outCap").textContent = T().outside.orbital(t.body);
     $("#outGo").textContent = T().outside.plan;
-    $("#outside").hidden = false;
+    $("#outside").hidden = false; document.body.classList.add("outside-on");
     await hatchOpen();
     $("#outGo").focus();
     await waitButton($("#outGo"));
