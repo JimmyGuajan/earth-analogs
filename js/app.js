@@ -183,7 +183,7 @@
       const s = allSites().find(x => x.id === state.selectedId);
       const pos = state.origin ? rank().findIndex(x => x.site.id === state.origin.id) + 1 : 0;
       if (s) Guide.say(G.verdict(crewName(), s.name.split(" – ")[0]) + (pos ? " " + G.originRank(pos, allSites().length) : ""));
-      if (!touring) setGuideActions([{ label: T().tour.start, run: startTour }]);
+      if (!touring) setGuideActions([{ label: T().tour.start, run: startTour, cue: !tourSeen }]);
       return;
     }
     const line = { intro: G.intro, earth: G.earth, crew: G.crew, dest: G.dest(crewName()), mission: G.missionRole[state.crew.role] || G.mission, brief: G.brief }[stage];
@@ -791,10 +791,10 @@
     const tabs = ["verdict", "top", "camp", "map", "evidence", "scan"];
     p.innerHTML = `<nav class="tabs">${tabs.map(k => `<button data-tab="${k}" class="${k === state.tab ? "on" : ""}">${T().tabs[k]}</button>`).join("")}</nav>
       <div class="p-body" id="tabBody"></div>
-      <div class="p-foot"><button class="btn ghost" id="newBtn">${T().newMission}</button><button class="btn cue" id="certBtn">${gamePassed() ? T().cert.btn : T().game.start}</button></div>`;
+      <div class="p-foot"><button class="btn ghost" id="newBtn">${T().newMission}</button><button class="btn ${tourSeen ? "cue" : ""}" id="certBtn">${gamePassed() ? T().cert.btn : T().game.start}</button></div>`;
     p.querySelectorAll(".tabs button").forEach(b => (b.onclick = () => {
       const prev = state.tab;
-      state.tab = b.dataset.tab; renderVerdictPanel();
+      state.tab = b.dataset.tab; state.fromTop = false; renderVerdictPanel();
       if (!touring) Guide.say(T().guide.tabs[state.tab]);
       $("#hint").hidden = state.tab !== "scan";
       if (state.peek) unpeek(true);
@@ -810,7 +810,7 @@
     ({ verdict: tabVerdict, top: tabTop, camp: tabCamp, map: tabMap, evidence: tabEvidence, scan: tabScan })[state.tab](results, t);
     const tab = state.tab;
     $("#tabBody").insertAdjacentHTML("afterbegin",
-      `<div class="about-row"><details class="about" ${helpOpen.has(tab) ? "open" : ""}><summary>${T().helpQ}</summary><p>${T().help[tab]}</p></details><button class="mini-btn" id="tourBtn">${T().tour.start}</button></div>`);
+      `<div class="about-row"><details class="about" ${helpOpen.has(tab) ? "open" : ""}><summary>${T().helpQ}</summary><p>${T().help[tab]}</p></details><button class="mini-btn ${tourSeen ? "" : "cue"}" id="tourBtn">${T().tour.start}</button></div>`);
     $("#tourBtn").onclick = startTour;
     $("#tabBody .about").addEventListener("toggle", e => (e.target.open ? helpOpen.add(tab) : helpOpen.delete(tab)));
     document.body.dataset.tab = tab;
@@ -831,8 +831,12 @@
     const gaps = scored.filter(k => r.per[k] < 0.6).sort((a, b) => w[b] * (1 - r.per[b]) - w[a] * (1 - r.per[a])).slice(0, 2);
     const lead = isWin ? (state.crew.name.trim() ? T().verdictLeadNamed(esc(crewName()), PL(state.profile), esc(short(t.name))) : T().verdictLead(PL(state.profile), esc(short(t.name))))
       : `#${pos} ${T().of} ${results.length} · ${esc(short(t.name))} · ${PL(state.profile)}`;
-    const preview = state.myProfile && state.profile !== state.myProfile
-      ? `<div class="preview-bar"><span>${T().byMission.viewing(PL(state.profile))}</span><button class="btn" id="backMine">${T().byMission.back(PL(state.myProfile))}</button></div>` : "";
+    // a site opened from the Top 10, or any site that is not the winner, keeps a way back
+    const N = T().nav, best = results[0].site;
+    const navBar = state.fromTop || !isWin
+      ? `<div class="preview-bar"><span>${!isWin ? N.viewing(pos, results.length) : N.fromTop}</span><span class="bar-actions">${!isWin ? `<button class="btn" id="backBest">${N.backBest}</button>` : ""}${state.fromTop ? `<button class="btn ghost" id="backTop">${N.backTop}</button>` : ""}</span></div>` : "";
+    const preview = navBar + (state.myProfile && state.profile !== state.myProfile
+      ? `<div class="preview-bar"><span>${T().byMission.viewing(PL(state.profile))}</span><button class="btn" id="backMine">${T().byMission.back(PL(state.myProfile))}</button></div>` : "");
     $("#tabBody").innerHTML = `${preview}
       <p class="lead">${lead}</p>
       <div class="winner">${ring(r.score)}<div><h2>${esc(s.name)}</h2><div class="country">${esc(CTRY(s.country))} ${usage}</div></div></div>
@@ -853,6 +857,8 @@
     bindTips($("#tabBody"));
     bindRoleTip();
     bindByMission();
+    const bb = $("#backBest"); if (bb) bb.onclick = () => { state.fromTop = false; selectSite(best.id); $("#tabBody").scrollTop = 0; };
+    const bt = $("#backTop"); if (bt) bt.onclick = () => { state.fromTop = false; openTab("top"); };
     const bm = $("#backMine");
     if (bm) bm.onclick = () => {
       state.profile = state.myProfile; state.mode = "match";
@@ -1044,13 +1050,13 @@
   }
 
   // ---------- guided tour of the verdict panel ----------
-  let touring = false;
+  let touring = false, tourSeen = false; // until the tour is seen (or skipped) once this session, it is the step that glows
   function setGuideActions(list) {
     const box = $("#guideActions");
     box.innerHTML = "";
     list.forEach(a => {
       const b = document.createElement("button");
-      b.className = "btn" + (a.ghost ? " ghost" : ""); b.textContent = a.label; b.onclick = a.run;
+      b.className = "btn" + (a.ghost ? " ghost" : "") + (a.cue ? " cue" : ""); b.textContent = a.label; b.onclick = a.run;
       box.appendChild(b);
     });
     box.hidden = !list.length;
@@ -1093,6 +1099,8 @@
       spot(null); setGuideActions([]);
       openTab("verdict");
       store.set("tourDone", true);
+      tourSeen = true;
+      if (state.stage === "verdict") renderVerdictPanel();
       Guide.say(T().tour.end);
     };
     let prev = null;
@@ -1241,7 +1249,7 @@
       state.mode = b.dataset.m; const res = rank(); state.selectedId = res[0].site.id;
       renderVerdictPanel(); showEarthResults(res, true); writeHash();
     }));
-    document.querySelectorAll(".rank li").forEach(li => (li.onclick = () => selectSite(li.dataset.id)));
+    document.querySelectorAll(".rank li").forEach(li => (li.onclick = () => { state.fromTop = true; selectSite(li.dataset.id); $("#tabBody").scrollTop = 0; }));
     $("#csvBtn").onclick = () => exportCSV(results);
   }
 
