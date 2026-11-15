@@ -30,6 +30,7 @@ window.I18N = {
     },
     tour: {
       start: "Recorrido guiado", next: "Siguiente", done: "Terminar", skip: "Saltar",
+      resume: "Pulsa «Siguiente» para seguir el recorrido.", resumeBtn: "Retomar recorrido",
       steps: {
         winner: (s, n) => `Empecemos por tu gemelo: ${s}, con ${n} de 100 de parecido. Primero te muestro el lugar y por qué lo elegí; después, el resto del panel.`,
         place: s => `Conoce el lugar: una foto real de ${s}, su historia y la vista satelital a la misma escala que tu destino. Desliza el control para comparar los dos.`,
@@ -319,6 +320,7 @@ window.I18N = {
     },
     tour: {
       start: "Guided tour", next: "Next", done: "Finish", skip: "Skip",
+      resume: "Press \"Next\" to carry on with the tour.", resumeBtn: "Resume tour",
       steps: {
         winner: (s, n) => `Let's start with your twin: ${s}, ${n} out of 100 alike. First I'll show you the place and why I chose it; then the rest of the panel.`,
         place: s => `Get to know the place: a real photo of ${s}, its story and the satellite view at the same scale as your destination. Drag the handle to compare them.`,

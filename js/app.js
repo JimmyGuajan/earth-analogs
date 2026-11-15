@@ -810,7 +810,7 @@
     ({ verdict: tabVerdict, top: tabTop, camp: tabCamp, map: tabMap, evidence: tabEvidence, scan: tabScan })[state.tab](results, t);
     const tab = state.tab;
     $("#tabBody").insertAdjacentHTML("afterbegin",
-      `<div class="about-row"><details class="about" ${helpOpen.has(tab) ? "open" : ""}><summary>${T().helpQ}</summary><p>${T().help[tab]}</p></details><button class="mini-btn ${tourSeen ? "" : "cue"}" id="tourBtn">${T().tour.start}</button></div>`);
+      `<div class="about-row"><details class="about" ${helpOpen.has(tab) ? "open" : ""}><summary>${T().helpQ}</summary><p>${T().help[tab]}</p></details><button class="mini-btn ${tourSeen ? "" : "cue"}" id="tourBtn">${touring ? T().tour.resumeBtn : T().tour.start}</button></div>`);
     $("#tourBtn").onclick = startTour;
     $("#tabBody .about").addEventListener("toggle", e => (e.target.open ? helpOpen.add(tab) : helpOpen.delete(tab)));
     document.body.dataset.tab = tab;
@@ -1015,7 +1015,7 @@
       const res = rank(); state.selectedId = res[0].site.id;
       renderVerdictPanel(); showEarthResults(res, true); writeHash();
       $("#tabBody").scrollTop = 0;
-      Guide.say(T().byMission.switched(PL(state.profile), res[0].site.name.split(" – ")[0]));
+      tell(T().byMission.switched(PL(state.profile), res[0].site.name.split(" – ")[0]));
     }));
   }
 
@@ -1069,8 +1069,11 @@
     const b = document.querySelector(`nav.tabs button[data-tab="${tab}"]`);
     if (b && state.tab !== tab) b.click();
   }
+  let resumeTour = null;
+  const tell = text => Guide.say(touring ? `${text} ${T().tour.resume}` : text); // during the tour, every reply points back to it
   function startTour() {
-    if (touring || state.stage !== "verdict") return;
+    if (touring) { resumeTour?.(); return; }
+    if (state.stage !== "verdict") return;
     touring = true;
     document.body.classList.add("touring");
     $("#guide").classList.remove("folded"); $("#guide").hidden = false;
@@ -1113,11 +1116,13 @@
       Guide.say(st.text());
       const last = i === steps.length - 1;
       setGuideActions([
-        { label: last ? T().tour.done : `${T().tour.next} (${i + 1}/${steps.length})`, run: () => { if (last) end(); else { i++; show(); } } },
+        { label: last ? T().tour.done : `${T().tour.next} (${i + 1}/${steps.length})`, cue: true, run: () => { if (last) end(); else { i++; show(); } } },
         { label: T().tour.skip, ghost: true, run: end },
       ]);
       $("#guideActions button").focus();
+      const tb = $("#tourBtn"); if (tb) tb.textContent = T().tour.resumeBtn;
     };
+    resumeTour = show;
     show();
   }
 
@@ -1359,12 +1364,12 @@
       } else {
         state.scan = s;
         if (state.stage === "earth") state.selectedId = "scan";
-        Guide.say(T().guide.scanDone(short(reverseTwins(s)[0].t.name)));
+        tell(T().guide.scanDone(short(reverseTwins(s)[0].t.name)));
       }
     } catch (e) {
       state.scan = null; state.scanError = "fail";
     }
-    if (state.scanError) Guide.say(T().scanErr[state.scanError]);
+    if (state.scanError) tell(T().scanErr[state.scanError]);
     state.scanBusy = false;
     renderPanel();
     if (state.stage === "earth") showEarthMode(false); else showEarthResults(rank(), false);
