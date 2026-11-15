@@ -182,6 +182,10 @@ body[data-stage="intro"] .panel, body[data-stage="launch"] .panel { opacity: 0; 
 .mission b { font-family: var(--display); font-size: 14.5px; line-height: 1.2; }
 .mission span { color: var(--muted); font-size: 12px; line-height: 1.35; }
 .mission.on { border-color: var(--target); background: var(--target-tint); }
+.mission .rec { font-style: normal; font-size: 11px; font-weight: 600; color: var(--world); }
+.role-tip { margin: 4px 0 8px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line-strong); font-size: 13px; }
+.role-tip b { display: block; font-size: 12px; color: var(--world); margin-bottom: 4px; }
+.role-tip p { margin: 0 0 8px; line-height: 1.5; }
 
 .chosen { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 12px; background: var(--target-tint); border: 1px dashed var(--target-line); margin-bottom: 16px; font-size: 13px; }
 .chosen .orb { width: 22px; height: 22px; border-radius: 50%; display: inline-block; flex: none; }
@@ -335,6 +339,7 @@ body[data-stage="intro"] .guide { max-width: min(380px, calc(100vw - 48px)); }
 .guide-actions[hidden] { display: none; }
 .guide-actions .btn { padding: 8px 14px; font-size: 13px; }
 /* the tour points at one thing at a time */
+body.touring .guide { z-index: 55; } /* above the place card the tour opens */
 .tour-spot { outline: 2px solid var(--target); outline-offset: 3px; border-radius: 10px; animation: spot 1.6s ease-in-out infinite; }
 @keyframes spot { 50% { outline-offset: 6px; } }
 .about-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 14px; }
@@ -396,6 +401,32 @@ body[data-stage="intro"] .guide { max-width: min(380px, calc(100vw - 48px)); }
 .fold[open] > summary::after, .dumb-more[open] > summary::after { content: "–"; }
 .dumb-more > summary { padding: 8px 4px; font-size: 12.5px; color: var(--accent); }
 .scene-label.below { transform: translate(-50%, 40%); }
+
+/* final test */
+.modal-card.game { width: min(620px, 100%); }
+.game .modal-body { display: flex; flex-direction: column; gap: 12px; }
+.game-pts { font-size: 13px; color: var(--muted); margin-left: auto; align-self: center; }
+.game-pts b { color: var(--text); font-variant-numeric: tabular-nums; }
+.game-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+.game-meta #gameSecs { font-variant-numeric: tabular-nums; color: var(--text); }
+.game-time { height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; }
+.game-time i { display: block; height: 100%; background: var(--world); transform-origin: left; transform: scaleX(1); }
+.game-q { font-family: var(--display); font-size: 21px; line-height: 1.3; margin: 4px 0; text-wrap: balance; }
+.game-opts { display: grid; gap: 8px; }
+.game-opt { text-align: left; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); font-size: 15px; transition: border-color var(--dur-short), background-color var(--dur-short); }
+.game-opt:hover:not(:disabled) { border-color: var(--accent); }
+.game-opt:active:not(:disabled) { background: var(--surface-3); }
+.game-opt:disabled { cursor: default; }
+.game-opt:disabled:not(.right):not(.wrong) { color: var(--muted); }
+.game-opt.right { border-color: var(--good); background: var(--good-tint); }
+.game-opt.wrong { border-color: var(--bad); background: var(--bad-tint); }
+.game-why { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bad-tint); font-size: 14px; }
+.game-why.ok { background: var(--good-tint); }
+.game-result { text-align: center; }
+.game-big { font-family: var(--display); font-size: 72px; font-weight: 700; line-height: 1; margin: 8px 0; font-variant-numeric: tabular-nums; }
+.game-big span { font-size: 32px; color: var(--muted); }
+.game-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.ev-dl { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* evidence: one compact table, the source a tap away */
 .ev-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 12px; color: var(--muted); margin: 4px 0 8px; }

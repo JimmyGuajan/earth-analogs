@@ -186,7 +186,7 @@
       if (!touring) setGuideActions([{ label: T().tour.start, run: startTour }]);
       return;
     }
-    const line = { intro: G.intro, earth: G.earth, crew: G.crew, dest: G.dest(crewName()), mission: G.mission, brief: G.brief }[stage];
+    const line = { intro: G.intro, earth: G.earth, crew: G.crew, dest: G.dest(crewName()), mission: G.missionRole[state.crew.role] || G.mission, brief: G.brief }[stage];
     if (line) Guide.say(line);
   }
   function closeModals() {
@@ -204,6 +204,7 @@
   }
 
   // ---------- panel per stage ----------
+  const recFor = id => (ROLE_PROFILES[state.crew.role] || []).includes(id);
   function patchOpts() { return { name: crewName(), code: state.stage === "crew" ? "EA" : state.code || missionCode(), body: state.stage === "crew" ? null : target()?.body }; }
   function renderPanel() {
     const p = $("#panel");
@@ -268,7 +269,7 @@
       p.innerHTML = `<div class="p-body">
         <div class="chosen"><span class="orb ${t.body}" style="width:22px;height:22px;border-radius:50%;display:inline-block"></span><span><b>${esc(short(t.name))}</b> · ${t.body === "Moon" ? T().moon : T().mars}</span></div>
         <h2 class="p-title" style="margin-bottom:14px">${T().chooseMission}</h2>
-        <div class="missions">${Object.keys(PROFILES).map(id => `<button class="mission ${id === state.profile ? "on" : ""}" data-id="${id}">${icon(id)}<b>${PL(id)}</b><span>${I18N_PROFILE_DESC[state.lang][id]}</span></button>`).join("")}</div>
+        <div class="missions">${Object.keys(PROFILES).sort((a, b) => recFor(b) - recFor(a)).map(id => `<button class="mission ${id === state.profile ? "on" : ""}" data-id="${id}">${icon(id)}${recFor(id) ? `<em class="rec">${T().rec}</em>` : ""}<b>${PL(id)}</b><span>${I18N_PROFILE_DESC[state.lang][id]}</span></button>`).join("")}</div>
       </div>
       <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button><button class="btn big" id="launchBtn" ${state.profile ? "" : "disabled"}>${T().launch}</button></div>`;
       p.querySelectorAll(".mission").forEach(b => (b.onclick = () => {
@@ -787,7 +788,7 @@
     const tabs = ["verdict", "top", "camp", "map", "evidence", "scan"];
     p.innerHTML = `<nav class="tabs">${tabs.map(k => `<button data-tab="${k}" class="${k === state.tab ? "on" : ""}">${T().tabs[k]}</button>`).join("")}</nav>
       <div class="p-body" id="tabBody"></div>
-      <div class="p-foot"><button class="btn ghost" id="newBtn">${T().newMission}</button><button class="btn ghost" id="cardBtn">${T().card}</button><button class="btn" id="certBtn">${T().cert.btn}</button></div>`;
+      <div class="p-foot"><button class="btn ghost" id="newBtn">${T().newMission}</button><button class="btn" id="certBtn">${gamePassed() ? T().cert.btn : T().game.start}</button></div>`;
     p.querySelectorAll(".tabs button").forEach(b => (b.onclick = () => {
       const prev = state.tab;
       state.tab = b.dataset.tab; renderVerdictPanel();
@@ -799,8 +800,10 @@
     $("#hint").textContent = state.lang === "es" ? "Haz clic en cualquier punto del globo" : "Click any point on the globe";
     $("#newBtn").onclick = () => { state.profile = null; state.scan = null; state.origin = null; clearLayers(); go("dest"); pickTarget(state.targetId); };
     const results = rank();
-    $("#cardBtn").onclick = () => exportCard(results.find(r => r.site.id === state.selectedId) || results[0]);
-    $("#certBtn").onclick = () => exportCertificate(results.find(r => r.site.id === state.selectedId) || results[0]);
+    $("#certBtn").onclick = () => {
+      const r = results.find(x => x.site.id === state.selectedId) || results[0];
+      if (gamePassed()) exportCertificate(r, gamePassed()); else openGame(r);
+    };
     ({ verdict: tabVerdict, top: tabTop, camp: tabCamp, map: tabMap, evidence: tabEvidence, scan: tabScan })[state.tab](results, t);
     const tab = state.tab;
     $("#tabBody").insertAdjacentHTML("afterbegin",
@@ -829,6 +832,7 @@
       <p class="lead">${lead}</p>
       <div class="winner">${ring(r.score)}<div><h2>${esc(s.name)}</h2><div class="country">${esc(CTRY(s.country))} ${usage}</div></div></div>
       ${s.scanned ? "" : `<button class="btn place-btn" id="placeBtn">${T().place.btn}</button>`}
+      ${roleTip(r, t)}
       <div class="sec">${T().why}</div>
       <div class="mchips">${reasons.map(k => mchip(k, r.per[k], "good", `${FL(k)}. ${earthDetail(k, s)}. ${world}: ${targetDetail(k, t)}`)).join("") || "<span class=\"help\">—</span>"}</div>
       <div class="sec">${T().cannot}</div>
@@ -841,6 +845,7 @@
       ${fold(T().viz.reverseFold, reverseHtml(s, false))}
       ${fold(T().viz.dataFold, `<div class="chips">${["NASA POWER", "Copernicus DEM", ...new Set(Object.values(t.prov || {}).filter(p => p.kind === "measured").map(p => PROV(p.text).split(":")[0]))].map(c => `<span class="chip">${esc(c)}</span>`).join("")}</div>`)}`;
     bindTips($("#tabBody"));
+    bindRoleTip();
     bindReverse();
     const pb = $("#placeBtn"); if (pb) pb.onclick = () => openPlace(s, t);
   }
@@ -849,6 +854,150 @@
   const ICON_NO = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg>';
   function mchip(k, m, kind, tip) {
     return `<span class="mchip ${kind}" tabindex="0" data-tip="${esc(tip)}">${kind === "good" ? ICON_OK : ICON_NO}<span>${FL(k)}</span><b>${Math.round(m * 100)} %</b></span>`;
+  }
+
+  // ---------- final test: four questions built from the viewer's own analysis earn the certificate ----------
+  const game = { passed: null }; // { key, score, of, rank } for the current mission and site
+  const gameKey = () => `${state.targetId}|${state.profile}|${state.selectedId}`;
+  const gamePassed = () => (game.passed && game.passed.key === gameKey() ? game.passed : null);
+  function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  function buildQuestions(r, t) {
+    const Q = T().game, s = r.site, w = weights();
+    const sName = s.name.split(" – ")[0], tName = short(t.name).split(" – ")[0];
+    const axes = KEYS.filter(k => r.per[k] != null && w[k] > 0);
+    const byMatch = axes.slice().sort((a, b) => r.per[b] - r.per[a]);
+    const qs = [];
+    // 1. the strongest match
+    const best = byMatch[0], weaker = byMatch.filter(k => r.per[k] <= r.per[best] - 0.2);
+    if (best && weaker.length >= 2) qs.push({ q: Q.q1(esc(sName), esc(tName)), right: FL(best), wrong: shuffle(weaker).slice(0, 2).map(FL), why: Q.why1(FL(best), Math.round(r.per[best] * 100)) });
+    // 2. what it cannot simulate
+    const worst = byMatch[byMatch.length - 1], good = byMatch.filter(k => r.per[k] >= r.per[worst] + 0.3);
+    if (worst && good.length >= 2) qs.push({ q: Q.q2(esc(sName), esc(tName)), right: FL(worst), wrong: shuffle(good).slice(0, 2).map(FL), why: Q.why2(FL(worst), Math.round(r.per[worst] * 100)) });
+    // 3. a process to watch here, or what Earth can never rehearse
+    const here = earthProcesses(s), there = PROCESSES.target[t.id] || {}, L = PROCESSES.label[state.lang];
+    const shared = PROCESSES.order.filter(k => here[k] && there[k]), notShared = PROCESSES.order.filter(k => !(here[k] && there[k]));
+    if (shared.length && notShared.length >= 2) {
+      const k = shared.find(x => here[x][0] === "now" && there[x][0] === "old") || shared[0];
+      qs.push({ q: Q.q3(esc(sName), esc(tName)), right: L[k], wrong: shuffle(notShared).slice(0, 2).map(x => L[x]), why: Q.why3(L[k], here[k][0] === "now") });
+    } else {
+      qs.push({ q: Q.q3b, right: Q.limitRight(t.body), wrong: Q.limitWrong, why: Q.why3b(t.body) });
+    }
+    // 4. the campaign partner
+    const { camp } = campaign();
+    const partner = camp.chosen.find(c => c.site.id !== s.id);
+    const others = rank("match", CURATED).slice(4, 24).map(x => x.site).filter(x => x.id !== s.id && !camp.chosen.some(c => c.site.id === x.id));
+    if (partner && others.length >= 2) {
+      const nm = x => x.name.split(" – ")[0];
+      qs.push({ q: Q.q4(esc(sName)), right: nm(partner.site), wrong: shuffle(others).slice(0, 2).map(nm), why: Q.why4(nm(partner.site), Math.round(camp.coverage)) });
+    }
+    return qs;
+  }
+
+  function openGame(r) {
+    const t = target(), G = T().game, qs = buildQuestions(r, t), key = gameKey(), SECS = 20;
+    let i = 0, score = 0, tick = null;
+    opener = document.activeElement;
+    let m = $("#gameModal");
+    if (!m) { m = document.createElement("div"); m.id = "gameModal"; m.className = "modal"; document.body.appendChild(m); }
+    m.hidden = false;
+    document.body.classList.add("modal-open");
+    const stop = () => { clearInterval(tick); tick = null; };
+    const close = () => { stop(); m.hidden = true; document.body.classList.remove("modal-open"); if (state.stage === "verdict") renderVerdictPanel(); if (opener && opener.isConnected) opener.focus(); };
+    const head = sub => `<header class="modal-head"><div><small>${G.title}</small><h2 id="gameTitle">${sub}</h2></div>
+      <span class="game-pts">${G.points}: <b>${score}</b></span>
+      <button class="modal-x" id="gameClose" aria-label="${T().place.close}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>`;
+    const bindClose = () => { $("#gameClose").onclick = close; m.onclick = e => { if (e.target === m) close(); }; };
+
+    const ask = () => {
+      const q = qs[i], opts = shuffle([q.right, ...q.wrong]);
+      m.innerHTML = `<div class="modal-card game" role="dialog" aria-modal="true" aria-labelledby="gameTitle">${head(G.round(i + 1, qs.length))}
+        <div class="modal-body">
+          <div class="game-meta"><span>${G.hint}</span><span id="gameSecs">${G.secs(SECS)}</span></div>
+          <div class="game-time"><i id="gameBar"></i></div>
+          <p class="game-q">${q.q}</p>
+          <div class="game-opts">${opts.map(o => `<button class="game-opt" data-right="${o === q.right}">${esc(o)}</button>`).join("")}</div>
+          <p class="game-why" id="gameWhy" hidden></p>
+          <button class="btn" id="gameNext" hidden>${i < qs.length - 1 ? G.next : G.result}</button>
+        </div></div>`;
+      bindClose();
+      let left = SECS;
+      const bar = $("#gameBar");
+      requestAnimationFrame(() => { bar.style.transition = `transform ${SECS}s linear`; bar.style.transform = "scaleX(0)"; });
+      const answer = btn => {
+        stop();
+        const ok = btn?.dataset.right === "true";
+        if (ok) score++;
+        m.querySelectorAll(".game-opt").forEach(b => { b.disabled = true; if (b.dataset.right === "true") b.classList.add("right"); });
+        if (btn && !ok) btn.classList.add("wrong");
+        bar.style.transition = "none"; bar.style.transform = getComputedStyle(bar).transform;
+        $(".game-pts b").textContent = score;
+        const lead = ok ? G.right : btn ? G.wrong : G.timeout;
+        $("#gameWhy").textContent = `${lead} ${q.why}`; $("#gameWhy").hidden = false;
+        $("#gameWhy").classList.toggle("ok", ok);
+        Guide.say(`${lead} ${q.why}`);
+        if (ok) SFX.go(); else SFX.beep(220);
+        const next = $("#gameNext"); next.hidden = false; next.focus();
+        next.onclick = () => { i++; if (i < qs.length) ask(); else finish(); };
+      };
+      m.querySelectorAll(".game-opt").forEach(b => (b.onclick = () => answer(b)));
+      m.querySelector(".game-opt").focus();
+      tick = setInterval(() => {
+        left--;
+        const el = $("#gameSecs"); if (el) el.textContent = G.secs(Math.max(left, 0));
+        if (left <= 0) answer(null);
+      }, 1000);
+    };
+
+    const finish = () => {
+      const pass = score >= Math.min(3, qs.length), top = score === qs.length;
+      const rankTxt = top ? G.rank.top : pass ? G.rank.ok : G.rank.retry;
+      if (pass) game.passed = { key, score, of: qs.length, rank: rankTxt };
+      m.innerHTML = `<div class="modal-card game" role="dialog" aria-modal="true" aria-labelledby="gameTitle">${head(rankTxt)}
+        <div class="modal-body game-result">
+          <p class="game-big">${score}<span>/${qs.length}</span></p>
+          <p>${pass ? G.passMsg(esc(crewName())) : G.failMsg}</p>
+          <div class="game-actions">${pass ? `<button class="btn big" id="gameCert">${T().cert.btn}</button>` : `<button class="btn big" id="gameRetry">${G.retry}</button>`}
+            <button class="btn ghost" id="gameBack">${G.back}</button></div>
+        </div></div>`;
+      bindClose();
+      if (pass) { SFX.touchdown(); Guide.say(G.passMsg(crewName())); $("#gameCert").onclick = () => exportCertificate(r, game.passed); $("#gameCert").focus(); }
+      else { Guide.say(G.failMsg); $("#gameRetry").onclick = () => { score = 0; i = 0; ask(); }; $("#gameRetry").focus(); }
+      $("#gameBack").onclick = close;
+    };
+
+    Guide.say(G.intro);
+    ask();
+  }
+  addEventListener("keydown", e => { if (e.key === "Escape" && $("#gameModal") && !$("#gameModal").hidden) $("#gameClose")?.click(); });
+
+  // ---------- roles: each one is steered to the missions and numbers it cares about ----------
+  const ROLE_PROFILES = { cmd: ["balanced"], geo: ["astrobio", "caves"], eng: ["habitat", "mobility"] };
+  function roleTip(r, t) {
+    const RT = T().roleTip, role = state.crew.role in ROLE_PROFILES ? state.crew.role : "cmd", s = r.site;
+    const lower = x => x.charAt(0).toLowerCase() + x.slice(1);
+    let txt;
+    if (role === "geo") {
+      const here = earthProcesses(s), there = PROCESSES.target[t.id] || {};
+      const shared = PROCESSES.order.filter(k => here[k] && there[k]).map(k => lower(PROCESSES.label[state.lang][k].split(":")[0]));
+      txt = RT.geo(shared.length, joinList(shared));
+    } else if (role === "eng") {
+      const pct = k => (r.per[k] == null ? "?" : Math.round(r.per[k] * 100));
+      txt = RT.eng(pct("regolith"), pct("relief"), pct("swing"));
+    } else {
+      const { camp, single } = campaign(), w = weights(), tot = KEYS.reduce((a, k) => a + w[k], 0);
+      const singleCov = 100 * KEYS.reduce((a, k) => a + w[k] * (single.per[k] ?? 0), 0) / tot;
+      const acc = s.access == null ? null : s.access >= 0.7 ? "easy" : s.access >= 0.4 ? "mid" : "hard";
+      txt = RT.cmd(Math.round(camp.coverage), Math.round(singleCov), acc ? RT.access[acc] : null);
+    }
+    return `<div class="role-tip"><b>${RT.title(roleLabel())}</b><p>${txt}</p><button class="mini-btn" id="roleTipBtn" data-role="${role}">${RT.btn[role]}</button></div>`;
+  }
+  function bindRoleTip() {
+    const b = $("#roleTipBtn"); if (!b) return;
+    b.onclick = () => {
+      const role = b.dataset.role;
+      if (role === "eng") state.mode = "ready";
+      openTab(role === "cmd" ? "camp" : role === "geo" ? "evidence" : "top");
+    };
   }
 
   // ---------- guided tour of the verdict panel ----------
@@ -878,10 +1027,15 @@
     $("#guide").classList.remove("folded"); $("#guide").hidden = false;
     const S = () => T().tour.steps;
     const tabBtn = k => document.querySelector(`nav.tabs button[data-tab="${k}"]`);
+    // first the place itself (which one, what it looks like, why it was chosen), then the rest of the panel
+    const res = rank(), cur = res.find(x => x.site.id === state.selectedId) || res[0], site = cur.site, tg = target();
+    const sName = site.name.split(" – ")[0];
     const steps = [
-      { text: () => S().panel, el: () => $("#panel"), tab: "verdict" },
-      { text: () => S().verdict, el: () => $("#tabBody .winner"), tab: "verdict" },
+      { text: () => S().winner(sName, Math.round(cur.score)), el: () => $("#tabBody .winner"), tab: "verdict" },
+      { text: () => S().place(sName), el: () => null, tab: "verdict", enter: () => { if (!site.scanned) openPlace(site, tg); }, leave: () => closePlace() },
+      { text: () => S().why, el: () => $("#tabBody .mchips"), tab: "verdict" },
       { text: () => S().chart, el: () => $("#tabBody .dumb"), tab: "verdict" },
+      { text: () => S().procs, el: () => { const f = [...document.querySelectorAll("#tabBody .fold")][0]; if (f) f.open = true; return f; }, tab: "verdict" },
       { text: () => S().top, el: () => tabBtn("top"), tab: "top" },
       { text: () => S().camp, el: () => tabBtn("camp"), tab: "camp" },
       { text: () => S().map, el: () => tabBtn("map"), tab: "map" },
@@ -891,15 +1045,19 @@
     ];
     let i = 0;
     const end = () => {
+      prev?.leave?.(); prev = null;
       touring = false; document.body.classList.remove("touring");
       spot(null); setGuideActions([]);
       openTab("verdict");
       store.set("tourDone", true);
       Guide.say(T().tour.end);
     };
+    let prev = null;
     const show = () => {
       const st = steps[i];
+      prev?.leave?.(); prev = st;
       openTab(st.tab);
+      st.enter?.();
       spot(st.el());
       Guide.say(st.text());
       const last = i === steps.length - 1;
@@ -1084,7 +1242,11 @@
       ${KEYS.map(k => `<details class="ev2"><summary><span>${FL(k)}</span>${cell(t[k], kindOf(k))}${cell(s.fp[k], earthKind(k))}</summary>
         <div class="ev2-src"><p><span class="badge ${kindOf(k)}">${K[kindOf(k)]}</span> <b>${world}:</b> ${esc(targetDetail(k, t))}</p>
           <p><span class="badge ${earthKind(k)}">${K[earthKind(k)]}</span> <b>${T().place.earth}:</b> ${esc(earthDetail(k, s))}</p></div></details>`).join("")}
+      <div class="sec">${T().dl.title}</div>
+      <div class="ev-dl"><button class="btn ghost" id="mdBtn">${T().dl.md}</button><button class="btn ghost" id="csvAll">${T().dl.csv}</button></div>
       <p class="foot-note">${T().beyond}<br>${T().dataset}: ${esc(generated)}</p>`;
+    $("#mdBtn").onclick = () => exportCard(r);
+    $("#csvAll").onclick = () => exportCSV(results);
   }
 
   function tabScan(results) {
@@ -1526,7 +1688,7 @@ _Earth Analogs · NASA Space Apps 2026 · ${new Date().toISOString().slice(0, 10
     a.href = URL.createObjectURL(blob); a.download = name; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
-  async function exportCertificate(r) {
+  async function exportCertificate(r, test) {
     const s = r.site, t = target(), C = T().cert;
     const code = state.code || missionCode();
     const blob = await Patch.certificate({
@@ -1534,7 +1696,8 @@ _Earth Analogs · NASA Space Apps 2026 · ${new Date().toISOString().slice(0, 10
       patch: { name: crewName(), code, body: t.body },
       statement: C.statement(PL(state.profile), short(t.name)),
       rows: [[C.code, code], [C.target, `${short(t.name)}, ${t.body === "Moon" ? T().moon : T().mars}`], [C.mission, PL(state.profile)],
-        [C.twin, `${s.name}, ${CTRY(s.country)}`], [C.score, `${dec(r.score, 1)} / 100`], [C.date, new Date().toLocaleDateString(state.lang)]],
+        [C.twin, `${s.name}, ${CTRY(s.country)}`], [C.score, `${dec(r.score, 1)} / 100`],
+        ...(test ? [[C.test, `${test.score}/${test.of}, ${test.rank}`]] : []), [C.date, new Date().toLocaleDateString(state.lang)]],
       footer: C.footer,
     });
     downloadBlob(`earth-analogs_${code}.png`, blob);

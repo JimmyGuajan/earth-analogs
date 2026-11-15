@@ -122,12 +122,12 @@
     ctx.fillStyle = c.muted; ctx.font = `400 30px Inter, ${FONT}`; ctx.fillText(role, x, 310);
     ctx.fillStyle = c.text; ctx.font = `400 26px Inter, ${FONT}`;
     wrap(ctx, statement, x, 372, W - x - 110, 36).forEach((l, i) => ctx.fillText(l, x, 372 + i * 36));
-    let y = 500;
+    let y = 504;
     rows.forEach(([k, v]) => {
       ctx.fillStyle = c.muted; ctx.font = `400 22px Inter, ${FONT}`; ctx.fillText(k, x, y);
       ctx.fillStyle = c.text; ctx.font = `600 28px ${FONT}`; ctx.fillText(v, x + 260, y, W - x - 380);
       ctx.strokeStyle = c.line; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, y + 18); ctx.lineTo(W - 110, y + 18); ctx.stroke();
-      y += 62;
+      y += 52;
     });
     ctx.fillStyle = c.muted; ctx.font = `400 19px Inter, ${FONT}`;
     footer.forEach((l, i) => ctx.fillText(l, 110, H - 120 + i * 30, W - 220));
