@@ -487,6 +487,7 @@
     const G = now("guide"), H = now("hud"), L = now("log");
     state.mode = "match"; state.tab = "verdict"; state.scan = state.origin || null;
     state.code = state.code || missionCode();
+    state.myProfile = state.profile;
     const results = rank("match", state.origin ? CURATED.concat(state.origin) : CURATED), win = results[0].site, siteShort = win.name.split(" – ")[0];
     state.selectedId = win.id;
     let onSkip; const skipP = new Promise(r => (onSkip = r));
@@ -830,7 +831,9 @@
     const gaps = scored.filter(k => r.per[k] < 0.6).sort((a, b) => w[b] * (1 - r.per[b]) - w[a] * (1 - r.per[a])).slice(0, 2);
     const lead = isWin ? (state.crew.name.trim() ? T().verdictLeadNamed(esc(crewName()), PL(state.profile), esc(short(t.name))) : T().verdictLead(PL(state.profile), esc(short(t.name))))
       : `#${pos} ${T().of} ${results.length} · ${esc(short(t.name))} · ${PL(state.profile)}`;
-    $("#tabBody").innerHTML = `
+    const preview = state.myProfile && state.profile !== state.myProfile
+      ? `<div class="preview-bar"><span>${T().byMission.viewing(PL(state.profile))}</span><button class="btn" id="backMine">${T().byMission.back(PL(state.myProfile))}</button></div>` : "";
+    $("#tabBody").innerHTML = `${preview}
       <p class="lead">${lead}</p>
       <div class="winner">${ring(r.score)}<div><h2>${esc(s.name)}</h2><div class="country">${esc(CTRY(s.country))} ${usage}</div></div></div>
       ${s.scanned ? "" : `<button class="btn place-btn" id="placeBtn">${T().place.btn}</button>`}
@@ -843,13 +846,21 @@
       ${byMissionHtml(t)}
       <div class="sec">${T().viz.title}</div>
       ${profileChart(s.fp, t, r.per, w, s.name.split(" – ")[0])}
-      ${fold(`${PROCESSES.text[state.lang].title} (${procCount})`, procHtml)}
+      ${fold(`${PROCESSES.text[state.lang].title} (${procCount})`, procHtml, "fold-procs")}
       ${s.note ? `<p class="note">${esc(NOTE(s))}</p>` : ""}
       ${fold(T().viz.reverseFold, reverseHtml(s, false))}
       ${fold(T().viz.dataFold, `<div class="chips">${["NASA POWER", "Copernicus DEM", ...new Set(Object.values(t.prov || {}).filter(p => p.kind === "measured").map(p => PROV(p.text).split(":")[0]))].map(c => `<span class="chip">${esc(c)}</span>`).join("")}</div>`)}`;
     bindTips($("#tabBody"));
     bindRoleTip();
     bindByMission();
+    const bm = $("#backMine");
+    if (bm) bm.onclick = () => {
+      state.profile = state.myProfile; state.mode = "match";
+      const res = rank(); state.selectedId = res[0].site.id;
+      renderVerdictPanel(); showEarthResults(res, true); writeHash();
+      $("#tabBody").scrollTop = 0;
+      Guide.say(T().byMission.backSaid(PL(state.profile)));
+    };
     bindReverse();
     const pb = $("#placeBtn"); if (pb) pb.onclick = () => openPlace(s, t);
   }
@@ -985,15 +996,19 @@
   }
   function byMissionHtml(t) {
     const B = T().byMission, rows = bestByMission(t), n = new Set(rows.map(r => r.site.id)).size;
-    const list = rows.map(r => `<button class="bym ${r.p === state.profile ? "on" : ""}" data-p="${r.p}">${icon(r.p)}<span>${PL(r.p)}</span><b>${esc(r.site.name.split(" – ")[0])}</b><span class="v">${Math.round(r.score)}</span></button>`).join("");
-    return `<details class="fold"><summary>${B.title(n)}</summary><p class="help">${n === 1 ? B.same(esc(rows[0].site.name.split(" – ")[0])) : B.hint}</p><div class="bym-list">${list}</div></details>`;
+    const mine = state.myProfile || state.profile;
+    const list = rows.map(r => `<button class="bym ${r.p === state.profile ? "on" : ""}" data-p="${r.p}">${icon(r.p)}
+      <span class="bym-t"><small>${PL(r.p)}${r.p === mine ? ` (${B.mine})` : ""}</small>${n === 1 ? "" : `<b>${esc(r.site.name.split(" – ")[0])}</b>`}</span><span class="v">${Math.round(r.score)}</span></button>`).join("");
+    return `<details class="fold fold-bym" ${state.myProfile && state.profile !== state.myProfile ? "open" : ""}><summary>${B.title(n)}</summary><p class="help">${n === 1 ? B.same(esc(rows[0].site.name.split(" – ")[0])) : B.hint}</p><div class="bym-list">${list}</div></details>`;
   }
   function bindByMission() {
     document.querySelectorAll("#tabBody .bym").forEach(b => (b.onclick = () => {
       if (b.dataset.p === state.profile) return;
+      state.myProfile = state.myProfile || state.profile;
       state.profile = b.dataset.p; state.mode = "match";
       const res = rank(); state.selectedId = res[0].site.id;
       renderVerdictPanel(); showEarthResults(res, true); writeHash();
+      $("#tabBody").scrollTop = 0;
       Guide.say(T().byMission.switched(PL(state.profile), res[0].site.name.split(" – ")[0]));
     }));
   }
@@ -1063,7 +1078,7 @@
       { text: () => S().place(sName), el: () => null, tab: "verdict", enter: () => { if (!site.scanned) openPlace(site, tg); }, leave: () => closePlace() },
       { text: () => S().why, el: () => $("#tabBody .mchips"), tab: "verdict" },
       { text: () => S().chart, el: () => $("#tabBody .dumb"), tab: "verdict" },
-      { text: () => S().procs, el: () => { const f = [...document.querySelectorAll("#tabBody .fold")][0]; if (f) f.open = true; return f; }, tab: "verdict" },
+      { text: () => S().procs, el: () => { const f = $("#tabBody .fold-procs"); if (f) f.open = true; return f; }, tab: "verdict" },
       { text: () => S().top, el: () => tabBtn("top"), tab: "top" },
       { text: () => S().camp, el: () => tabBtn("camp"), tab: "camp" },
       { text: () => S().map, el: () => tabBtn("map"), tab: "map" },
@@ -1456,7 +1471,7 @@
     const w = TW.profileWeights("balanced");
     return TARGETS.map(t => ({ t, ...TW.compare(site.fp, t, w) })).sort((a, b) => b.score - a.score);
   }
-  const fold = (title, html) => `<details class="fold"><summary>${title}</summary>${html}</details>`;
+  const fold = (title, html, cls = "") => `<details class="fold ${cls}"><summary>${title}</summary>${html}</details>`;
   function reverseHtml(site, withTitle = true) {
     state.revSite = site;
     const list = reverseTwins(site).slice(0, 3);
@@ -1737,7 +1752,7 @@ _Earth Analogs · NASA Space Apps 2026 · ${new Date().toISOString().slice(0, 10
     const h = new URLSearchParams(location.hash.slice(1));
     const t = TARGETS.find(x => x.id === h.get("t"));
     if (!t || !PROFILES[h.get("p")]) return false;
-    state.targetId = t.id; state.body = t.body; state.profile = h.get("p");
+    state.targetId = t.id; state.body = t.body; state.profile = state.myProfile = h.get("p");
     if (["match", "untapped", "ready"].includes(h.get("m"))) state.mode = h.get("m");
     return true;
   }
