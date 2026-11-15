@@ -63,6 +63,8 @@
       g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
       o.stop(t + 0.7); o2.stop(t + 0.7); hum = null;
     },
+    /** hatch: a heavy latch, then the hiss of the seal */
+    hatch() { tone(90, 0.25, { type: "square", gain: 0.1, slide: 50 }); noise(1.2, { gain: 0.07, from: 4000, to: 1500, at: 0.25, type: "highpass" }); },
     /** plasma roar during re-entry */
     reentry(dur = 3) { noise(dur, { gain: 0.18, from: 2400, to: 300, type: "bandpass" }); },
     /** touchdown thump and arrival chime */

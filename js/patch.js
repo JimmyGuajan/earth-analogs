@@ -92,6 +92,7 @@
 
   /** draw the patch into a <canvas> element at device resolution */
   function paint(canvas, opts) {
+    if (!canvas || !canvas.isConnected) return;
     const size = canvas.clientWidth || 200, dpr = global.devicePixelRatio || 1;
     canvas.width = size * dpr; canvas.height = size * dpr;
     const ctx = canvas.getContext("2d");

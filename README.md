@@ -10,11 +10,15 @@ Earth Analogs turns every place (an Earth site, a Moon or Mars landing site, or 
 2. **Destination.** Pick a base or landing site on a 3D Moon or Mars, textured with LRO WAC and Viking MDIM 2.1 imagery from NASA Trek.
 3. **Mission.** Choose what to test: ISRU and water ice, rover and EVA mobility, caves and radiation shelter, astrobiology, polar light and power, or habitat construction.
 4. **Briefing.** A mission code (for example `EA-TRQ-CAV-01`), the destination's measured facts and why this mission is rehearsed on Earth first. You accept the mission.
-5. **Journey.**
+5. **Journey.** Commander Vega, the mission guide, narrates every step in a speech bubble. When sound is on she speaks aloud through the browser's own speech synthesis. She reacts to each destination with its measured facts, and the viewer can fold her away.
+   - Boarding: the hatch closes and the view moves inside the cabin, with a window frame around the globe.
    - Mission control polls the live data links GO or NO-GO with real requests (NASA POWER, Copernicus DEM, Planetary Computer, Macrostrat). A link that does not answer reports "GO on stored data", because the verdict uses the stored dataset.
    - A countdown, then lift-off.
-   - A cockpit read-out counts down distance, speed and mission day. Time is compressed, and the HUD says so: about 3 days from the Moon, about 259 days on a Hohmann transfer from Mars.
+   - A cockpit read-out counts down **today's real distance** to Earth (Moon: Meeus lunar theory; Mars: JPL mean orbital elements, both checked against known perigees and oppositions), speed in km/h, kilometres travelled and mission day. Time is compressed, and the HUD says so: about 3 days from the Moon, about 259 days and 587 million km on a Hohmann transfer from Mars.
+   - Through the window: **NASA EPIC's latest real photograph of the whole Earth** (DSCOVR, 1.5 million km away), the frame whose centre is closest to the landing site.
+   - **The International Space Station, live**: its real position, altitude and speed right now, shown on the globe.
    - Re-entry over the winning site (altitude, speed, phase), then touchdown.
+   - The hatch opens: the first look outside is a real photograph of the site (Wikimedia Commons, credited) or its satellite view.
    - "Skip the journey" (or Esc) jumps straight to the verdict, and `prefers-reduced-motion` shortens every step.
 6. **Verdict.** *"Jimmy, based on this data analysis, the best place on Earth to rehearse … is …"*, with the reasons, what the site **cannot** simulate, and a radar comparison. **Certificate** downloads a PNG with your patch, the mission code, the destination, the Earth twin and its score.
 7. **Explore.** Five tabs:
@@ -110,6 +114,8 @@ js/app.js                3D globe (globe.gl), guided flow, launch animation, ver
 js/i18n.js               Spanish / English
 js/patch.js              mission patch and certificate (canvas)
 js/sound.js              mission sounds (Web Audio, off by default)
+js/guide.js              Commander Vega, the guide (speech bubble + optional voice)
+js/astro.js              today's Earth–Moon and Earth–Mars distances
 js/data.js               generated dataset (45 Earth sites + 9 targets)
 assets/                  globe textures (NASA GIBS Blue Marble, LRO WAC, Viking MDIM 2.1)
 data/earth_sites.json    curated Earth catalog (terrain axes, usage, access)
@@ -131,6 +137,7 @@ docs/SUBMISSION.md       Space Apps project text and 30-s video script
 - **Copernicus GLO-90 DEM** through the Open-Meteo elevation API
 - Through **Microsoft Planetary Computer**: **MODIS Terra MOD11A2** land-surface temperature 2023 (NASA), **ALOS PALSAR** annual L-band mosaic 2020 (JAXA), **ESA WorldCover** 2021, **JRC Global Surface Water** 1984–2021
 - **Macrostrat** geologic map units (CC-BY 4.0)
+- **NASA EPIC** (DSCOVR) natural-colour Earth images, **wheretheiss.at** for the live ISS position
 - Mission measurements: MSL REMS and RAD, Mars 2020 MEDA, LADEE, LCROSS, CRaTER
 
 ## Honest limitations

@@ -227,14 +227,14 @@ fieldset.field { border: 0; margin: 0 0 16px; padding: 0; }
 .hud[hidden] { display: none; }
 .hud-head { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--muted); margin-bottom: 8px; }
 .hud-head b { color: var(--text); font-weight: 600; }
-.hud-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.hud-grid div { border-left: 0; }
+.hud-grid { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 12px; }
+.hud-grid div:has(small:empty) { display: none; }
 .hud-grid small { display: block; font-size: 12px; color: var(--muted); }
 .hud-grid output { font-family: var(--mono); font-size: 20px; color: var(--text); font-variant-numeric: tabular-nums; }
 .hud-track { height: 4px; border-radius: 2px; background: var(--track); margin-top: 12px; overflow: hidden; }
 .hud-track i { display: block; height: 100%; width: 100%; background: var(--target); transform-origin: left; transform: scaleX(0); }
 .hud-note { font-size: 11.5px; color: var(--muted); margin: 8px 0 0; }
-.skip { position: fixed; z-index: 31; right: 24px; top: 76px; }
+.skip { position: fixed; z-index: 46; right: 24px; top: 76px; }
 .skip[hidden] { display: none; }
 
 /* warp: star streaks while travelling */
@@ -250,6 +250,71 @@ fieldset.field { border: 0; margin: 0 0 16px; padding: 0; }
 .touchdown[hidden] { display: none; }
 .touchdown h2 { font-size: 22px; }
 .touchdown p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+
+/* inside the ship: the window frame */
+.cockpit { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; opacity: 0; transition: opacity .6s var(--ease-out); }
+.cockpit.on { opacity: 1; }
+.cockpit .frame { fill: var(--surface); opacity: .95; }
+.cockpit .strut { stroke: var(--surface-2); stroke-width: 22; stroke-linecap: round; }
+.cockpit .edge { fill: none; stroke: var(--line-strong); stroke-width: 4; }
+.cockpit .dash { fill: var(--surface-2); }
+
+/* a real photograph seen through the window (NASA EPIC) */
+.window-photo { position: fixed; z-index: 6; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(48vh, 440px); margin: 0; transition: opacity 1s var(--ease-out), transform 1s var(--ease-out); pointer-events: none; }
+.js .window-photo:not(.on) { opacity: 0; transform: translate(-50%, -50%) scale(.96); }
+.window-photo[hidden] { display: none; }
+.window-photo img { display: block; width: 100%; aspect-ratio: 1; border-radius: 50%; object-fit: cover; border: 1px solid var(--line-strong); }
+.window-photo figcaption { margin: 12px auto 0; width: max-content; max-width: 100%; text-align: center; font-size: 12px; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 99px; padding: 4px 12px; }
+
+/* the hatch */
+.hatch { position: fixed; inset: 0; z-index: 40; pointer-events: none; display: grid; place-items: center; visibility: hidden; }
+.hatch.on { visibility: visible; }
+.hatch .door { position: absolute; top: 0; bottom: 0; width: 50.5%; background: linear-gradient(180deg, var(--surface-2), var(--surface)); transition: transform .7s var(--ease-out); }
+.hatch .door.l { left: 0; transform: translateX(-101%); border-right: 2px solid var(--line-strong); }
+.hatch .door.r { right: 0; transform: translateX(101%); border-left: 2px solid var(--line-strong); }
+.hatch.closed .door { transform: none; }
+.hatch::after { content: ""; position: absolute; width: 240px; height: 240px; border-radius: 50%; border: 6px solid var(--line-strong); opacity: 0; transition: opacity .3s; }
+.hatch.closed::after { opacity: 1; transition-delay: .5s; }
+.hatch p { position: relative; z-index: 1; max-width: 200px; text-align: center; font-family: var(--display); font-size: 18px; font-weight: 500; color: var(--text); opacity: 0; transition: opacity .3s; }
+.hatch.closed p { opacity: 1; transition-delay: .5s; }
+
+/* first look outside */
+.outside { position: fixed; inset: 0; z-index: 35; background: var(--bg); overflow: clip; }
+.outside[hidden] { display: none; }
+.outside img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: drift 9s ease-out both; }
+@keyframes drift { from { transform: scale(1.1); } to { transform: scale(1); } }
+.outside-text { position: absolute; left: 0; right: 0; bottom: 0; padding: 120px 40px 40px; background: linear-gradient(180deg, transparent, var(--bg) 70%); display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.outside-text h2 { font-size: clamp(28px, 4vw, 44px); }
+.outside-text p { margin: 0 0 8px; color: var(--muted); font-size: 12px; max-width: 70ch; }
+.outside-text a { color: var(--accent); }
+
+/* Commander Vega */
+.guide { position: fixed; z-index: 45; right: 24px; bottom: 24px; display: flex; flex-direction: row-reverse; align-items: flex-end; gap: 12px; max-width: min(420px, calc(100vw - 48px)); }
+.guide[hidden] { display: none; }
+body[data-stage="launch"] .guide { right: auto; left: 24px; flex-direction: row; }
+body[data-stage="intro"] .guide { max-width: min(380px, calc(100vw - 48px)); }
+.guide-avatar { width: 64px; height: 64px; flex: none; border-radius: 50%; background: var(--panel); border: 1px solid var(--line-strong); display: grid; place-items: center; padding: 4px; transition: border-color var(--dur-short); }
+.guide-avatar:hover { border-color: var(--target); }
+.guide-avatar:active { transform: translateY(1px); }
+.astro { width: 100%; height: 100%; }
+.astro .suit, .astro .helmet { fill: var(--hull); }
+.astro .helmet { stroke: var(--surface-3); stroke-width: 1.5; }
+.astro .collar { fill: var(--surface-3); }
+.astro .patch-dot { fill: var(--target); }
+.astro .visor { fill: url(#visorG); }
+.astro .v0 { stop-color: var(--accent); } .astro .v1 { stop-color: var(--bg); }
+.astro .glint { fill: none; stroke: var(--star); stroke-width: 2.5; stroke-linecap: round; opacity: .85; }
+.astro .antenna { stroke: var(--muted); stroke-width: 2; stroke-linecap: round; }
+.astro .beacon { fill: var(--target); }
+.guide.talking .beacon { animation: beacon .45s ease-in-out infinite alternate; }
+@keyframes beacon { to { opacity: .25; } }
+.guide-bubble { position: relative; background: var(--panel); border: 1px solid var(--line-strong); border-radius: 16px; padding: 12px 36px 12px 16px; font-size: 14px; line-height: 1.5; }
+.guide-name { display: block; font-size: 12px; color: var(--target); margin-bottom: 4px; }
+.guide-bubble p { margin: 0; min-height: 1.5em; }
+.guide-x { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); }
+.guide-x:hover { color: var(--text); background: var(--surface-2); }
+.guide-x .icon { width: 14px; height: 14px; }
+.guide.folded .guide-bubble { display: none; }
 
 /* ship */
 .ship { position: fixed; z-index: 15; width: 64px; height: 64px; left: 0; top: 0; opacity: 0; pointer-events: none; filter: drop-shadow(0 0 12px var(--target)); }
@@ -322,7 +387,7 @@ table.ev .src { color: var(--muted); font-size: 11.5px; }
 .foot-note { color: var(--muted); font-size: 11.5px; margin-top: 14px; }
 
 /* globe hint + labels */
-.hint { position: fixed; z-index: 11; right: 24px; bottom: 24px; background: var(--panel); border: 1px solid var(--line); border-radius: 99px; padding: 8px 14px; font-size: 12.5px; color: var(--muted); }
+.hint { position: fixed; z-index: 11; right: 24px; top: 76px; background: var(--panel); border: 1px solid var(--line); border-radius: 99px; padding: 8px 14px; font-size: 12.5px; color: var(--muted); }
 .scene-label { font: 600 12px var(--font); color: var(--text); background: var(--label-bg); border: 1px solid var(--line); padding: 2px 8px; border-radius: 8px; white-space: nowrap; transform: translate(-50%, -150%); pointer-events: none; }
 .scene-label.win { border-color: var(--target); color: var(--target); font-size: 13px; }
 .lander { width: 36px; height: 36px; transform: translate(-50%, -90%); pointer-events: none; filter: drop-shadow(0 0 8px var(--target)); animation: bob 2s ease-in-out infinite; }
@@ -404,9 +469,16 @@ body.modal-open { overflow: clip; }
   .peekbar { top: 64px; left: 10px; right: 10px; justify-content: space-between; }
   .hud { top: 64px; }
   .hud-grid output { font-size: 16px; }
-  .skip { top: auto; bottom: 20px; right: 50%; transform: translateX(50%); }
+  .skip { top: auto; bottom: 168px; right: 50%; transform: translateX(50%); }
   .sound span { display: none; }
   .top { padding: 12px 16px; gap: 8px; }
+  .guide, body[data-stage="launch"] .guide { left: 10px; right: 10px; top: 60px; bottom: auto; max-width: none; flex-direction: row; align-items: flex-start; }
+  .guide-avatar { width: 48px; height: 48px; }
+  .guide-bubble { font-size: 13px; padding: 8px 32px 8px 12px; }
+  body[data-stage="launch"] .terminal { display: none; }
+  body[data-stage="launch"] .hud { top: auto; bottom: 16px; }
+  .window-photo { width: min(70vw, 320px); }
+  .outside-text { padding: 80px 20px 28px; }
   .brand { font-size: 16px; gap: 8px; white-space: nowrap; }
   .logo { width: 26px; height: 26px; }
 }

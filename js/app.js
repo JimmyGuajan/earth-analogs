@@ -149,11 +149,23 @@
     const idx = { intro: -1, earth: -1, crew: 0, dest: 1, mission: 2, brief: 2, launch: 3, verdict: 4 }[state.stage];
     $("#soundBtn span").textContent = SFX.on ? T().soundOn : T().soundOff;
     $("#soundBtn").setAttribute("aria-pressed", String(SFX.on));
+    $("#guideX").setAttribute("aria-label", T().guideHide);
     $("#progress").innerHTML = T().steps.map((s, i) => `<li class="${i === idx ? "on" : i < idx ? "done" : ""}"><i>${i < idx ? "✓" : i + 1}</i><span>${s}</span></li>`).join("");
     document.body.dataset.stage = state.stage;
   }
+  function guideStage(stage) {
+    const G = T().guide;
+    if (stage === "verdict") {
+      const s = allSites().find(x => x.id === state.selectedId);
+      if (s) Guide.say(G.verdict(crewName(), s.name.split(" – ")[0]));
+      return;
+    }
+    const line = { intro: G.intro, earth: G.earth, crew: G.crew, dest: G.dest(crewName()), mission: G.mission, brief: G.brief }[stage];
+    if (line) Guide.say(line);
+  }
   function go(stage) {
     state.stage = stage; renderChrome(); layoutGlobe(); renderPanel();
+    guideStage(stage);
     $("#hint").hidden = true;
   }
 
@@ -225,7 +237,10 @@
         <div class="missions">${Object.keys(PROFILES).map(id => `<button class="mission ${id === state.profile ? "on" : ""}" data-id="${id}">${icon(id)}<b>${PL(id)}</b><span>${I18N_PROFILE_DESC[state.lang][id]}</span></button>`).join("")}</div>
       </div>
       <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button><button class="btn big" id="launchBtn" ${state.profile ? "" : "disabled"}>${T().launch}</button></div>`;
-      p.querySelectorAll(".mission").forEach(b => (b.onclick = () => { state.profile = b.dataset.id; renderPanel(); }));
+      p.querySelectorAll(".mission").forEach(b => (b.onclick = () => {
+        state.profile = b.dataset.id; renderPanel();
+        Guide.say(`${PL(b.dataset.id)}. ${I18N_PROFILE_WHY[state.lang][b.dataset.id].split(". ")[0]}.`.replace("..", "."));
+      }));
       $("#backBtn").onclick = () => go("dest");
       $("#launchBtn").onclick = () => { state.code = missionCode(); go("brief"); };
     }
@@ -238,7 +253,7 @@
     state.targetId = id; state.body = t.body; ctl.autoRotate = false;
     showTargetsOnGlobe();
     globe.pointOfView({ lat: Math.abs(t.lat) > 80 ? Math.sign(t.lat) * 70 : t.lat, lng: t.lon, altitude: 1.5 }, 1200);
-    if (state.stage === "dest") renderPanel();
+    if (state.stage === "dest") { renderPanel(); Guide.say(T().guide.targets[id]); }
   }
   function goHome() {
     history.replaceState(null, "", location.pathname);
@@ -279,6 +294,7 @@
   function skipJourney() {
     if (!run || run.skipped) return;
     run.skipped = true;
+    Guide.hush();
     run.waits.splice(0).forEach(f => f());
     run.anims.forEach(a => { try { a.finish(); } catch { /* already finished */ } });
     run.onSkip();
@@ -363,21 +379,89 @@
     if (o.note != null) $("#hudNote").textContent = o.note;
   }
 
+  // what is seen through the window is real: NASA EPIC's latest whole-Earth photo and the ISS right now
+  async function fetchEpic(lon) {
+    try {
+      const list = await (await fetch("https://epic.gsfc.nasa.gov/api/natural")).json();
+      if (!list.length) return null;
+      const off = x => Math.abs(((x - lon + 540) % 360) - 180);
+      const best = list.reduce((a, b) => (off(b.centroid_coordinates.lon) < off(a.centroid_coordinates.lon) ? b : a));
+      const src = `https://epic.gsfc.nasa.gov/archive/natural/${best.date.slice(0, 10).replaceAll("-", "/")}/jpg/${best.image}.jpg`;
+      await new Promise((res, rej) => { const im = new Image(); im.onload = res; im.onerror = rej; im.src = src; });
+      return { src, date: new Date(best.date.replace(" ", "T") + "Z") };
+    } catch { return null; }
+  }
+  async function fetchIss() {
+    try {
+      const j = await (await fetch("https://api.wheretheiss.at/v1/satellites/25544")).json();
+      return { lat: j.latitude, lon: j.longitude, alt: j.altitude, vel: j.velocity };
+    } catch { return null; }
+  }
+  const fmtDate = d => d.toLocaleDateString(state.lang === "es" ? "es-EC" : "en-US", { day: "numeric", month: "long", year: "numeric" });
+  const coord = (lat, lon) => `${Math.abs(lat).toFixed(1)}° ${lat >= 0 ? "N" : "S"}, ${Math.abs(lon).toFixed(1)}° ${lon >= 0 ? "E" : state.lang === "es" ? "O" : "W"}`;
+  const say = text => { if (!run?.skipped) Guide.say(text); };
+  const within = (p, ms) => Promise.race([p, sleep(ms).then(() => null), run.skipP.then(() => null)]);
+
+  async function hatchClose(text, ms) {
+    const h = $("#hatch");
+    $("#hatchText").textContent = text;
+    h.classList.add("on"); void h.offsetWidth; h.classList.add("closed");
+    sfx(() => SFX.hatch());
+    await pause(ms);
+  }
+  async function hatchOpen() {
+    $("#hatch").classList.remove("closed");
+    await pause(700);
+    $("#hatch").classList.remove("on");
+  }
+  function showOutside(site) {
+    const ph = ((window.TW_WIKI || {})[site.id] || {}).photo, O = T().outside;
+    $("#outside img")?.remove();
+    const img = new Image();
+    img.src = ph ? ph.src : `assets/views/earth/${site.id}.jpg`; img.alt = site.name;
+    $("#outside").prepend(img);
+    $("#outTitle").textContent = O.title(site.name.split(" – ")[0]);
+    $("#outCap").textContent = ph ? O.photo(ph.author, ph.license) : O.sat;
+    $("#outGo").textContent = O.go;
+    $("#outside").hidden = false;
+  }
+  function waitButton(btn, ms) {
+    return new Promise(res => { const done = () => { btn.onclick = null; res(); }; btn.onclick = done; pause(ms).then(done); });
+  }
+  function endJourney() {
+    $("#touchdown").hidden = true; hud(false); $("#terminal").hidden = true; $("#skipBtn").hidden = true; $("#countdown").hidden = true;
+    $("#outside").hidden = true; $("#windowPhoto").classList.remove("on"); $("#windowPhoto").hidden = true;
+    $("#hatch").className = "hatch"; $("#cockpit").classList.remove("on");
+    warp(false); SFX.humStop(); $("#plasma").classList.remove("on"); $("#flash").classList.remove("on");
+    $("#ship").getAnimations().forEach(a => a.cancel());
+  }
+
   async function launch() {
-    const t = target(), w = weights();
+    const t = target(), w = weights(), G = T().guide, H = T().hud, L = T().log;
     state.mode = "match"; state.tab = "verdict"; state.scan = null;
     state.code = state.code || missionCode();
-    const results = rank("match", CURATED), win = results[0].site, H = T().hud, L = T().log;
+    const results = rank("match", CURATED), win = results[0].site, siteShort = win.name.split(" – ")[0];
     state.selectedId = win.id;
     let onSkip; const skipP = new Promise(r => (onSkip = r));
     run = { skipped: false, waits: [], anims: [], onSkip, skipP };
-    go("launch");
-    $("#termBody").innerHTML = ""; $("#termCode").textContent = state.code; $("#terminal").hidden = false;
+    const live = { epic: fetchEpic(win.lon), iss: fetchIss() }; // fetched now, shown later
+    const moon = t.body === "Moon";
+    const D0 = moon ? Astro.moonKm() : Astro.marsKm(), PATH = moon ? D0 : Astro.HOHMANN_KM;
+    const V0 = moon ? 1.5 : 2.6, V1 = moon ? 11 : 11.6, DAYS = moon ? 3 : 259; // km/s relative to Earth; Hohmann v-infinity at Mars ≈ 2.6
+
+    // 0. boarding: the hatch closes and we are inside the cabin, on the pad
     $("#skipBtn").textContent = T().skip; $("#skipBtn").hidden = false;
+    say(G.boarding);
+    await hatchClose(T().hatch.closing, 1700);
+    go("launch");
+    $("#cockpit").classList.add("on");
     ctl.autoRotate = false;
-    globe.pointOfView({ lat: Math.abs(t.lat) > 80 ? Math.sign(t.lat) * 75 : t.lat, lng: t.lon, altitude: 1.2 }, 1000);
+    globe.pointOfView({ lat: Math.abs(t.lat) > 80 ? Math.sign(t.lat) * 75 : t.lat, lng: t.lon, altitude: 1.2 }, 0);
+    $("#termBody").innerHTML = ""; $("#termCode").textContent = state.code; $("#terminal").hidden = false;
+    await hatchOpen();
 
     // 1. on the pad: crew, destination profile, then a GO/NO-GO poll of the live data links
+    say(G.poll);
     await typeLine(`<span class="k">${L.target(esc(short(t.name)))}</span>`);
     await typeLine(L.crew(esc(crewName()), esc(roleLabel())));
     const prov = t.prov || {};
@@ -386,7 +470,8 @@
     await pollSystems(win);
     await countdown();
 
-    // 2. lift-off and cruise back to Earth (time compressed, said on the HUD)
+    // 2. lift-off and cruise back to Earth: today's real distance, time compressed (said on the HUD)
+    say(G.liftoff);
     const ship = $("#ship");
     await flyShip(globeCenter(), { x: innerWidth + 80, y: -80 }, 45, [0.6, 1.4], 1300);
     $("#flash").classList.add("on");
@@ -395,13 +480,14 @@
     globe.pointOfView({ lat: win.lat, lng: win.lon - 70, altitude: 7 }, 0);
     $("#flash").classList.remove("on");
     warp(true); sfx(() => SFX.humStart());
-    const moon = t.body === "Moon";
-    const D0 = moon ? 384400 : 225e6, V0 = moon ? 1.5 : 2.6, V1 = moon ? 11 : 12, DAYS = moon ? 3 : 259;
-    hud(true, { phase: H.cruise(t.body), crew: `${crewName()}, ${roleLabel()}`, labels: [H.dist, H.speed, H.time], note: moon ? H.noteMoon : H.noteMars, k: 0 });
-    const CRUISE = 9000;
+    hud(true, { phase: H.cruise(t.body), crew: `${crewName()}, ${roleLabel()}`, labels: [H.dist, H.speed, H.travelled, H.time], note: moon ? H.noteMoon : H.noteMars, k: 0 });
+    say(moon ? G.cruiseMoon(nf(D0)) : G.cruiseMars(nf(D0 / 1e6, 1)));
+    const CRUISE = 12000;
     globe.pointOfView({ lat: win.lat, lng: win.lon - 25, altitude: 2.6 }, reduced() || run.skipped ? 0 : CRUISE);
     await Promise.all([
-      tween(CRUISE, k => hud(true, { k, values: [`${nf(D0 * (1 - k))} km`, `${nf(V0 + (V1 - V0) * k * k, 1)} km/s`, H.day(Math.max(1, Math.round(1 + (DAYS - 1) * k)))] })),
+      tween(CRUISE, k => hud(true, { k, values: [
+        `${nf(D0 * (1 - k))} km`, `${nf((V0 + (V1 - V0) * k * k) * 3600)} km/h`, `${nf(PATH * k)} km`, H.day(Math.max(1, Math.round(1 + (DAYS - 1) * k))),
+      ] })),
       (async () => {
         await typeLine(L.power(CURATED.length));
         await typeLine(L.dem(CURATED.length));
@@ -411,40 +497,72 @@
         globe.htmlElementsData([]).ringsData([]);
         await typeLine(`<span class="ok">${L.best(esc(win.name), results[0].score.toFixed(1))}</span>`);
       })(),
+      (async () => { // the real Earth through the window
+        await pause(4800);
+        const epic = await within(live.epic, 1500);
+        if (!epic || run.skipped) return;
+        const wp = $("#windowPhoto");
+        wp.querySelector("img")?.remove();
+        const img = new Image(); img.src = epic.src; img.alt = T().epic(fmtDate(epic.date)); wp.prepend(img);
+        $("#epicCap").textContent = T().epic(fmtDate(epic.date));
+        wp.hidden = false; void wp.offsetWidth; wp.classList.add("on");
+        say(G.epic(fmtDate(epic.date)));
+        await pause(5600);
+        wp.classList.remove("on"); await pause(900); wp.hidden = true;
+      })(),
     ]);
 
-    // 3. re-entry over the best twin
-    warp(false); SFX.humStop(); sfx(() => SFX.reentry(4));
-    const ENTRY = 4200, siteShort = win.name.split(" – ")[0];
+    // 3. the International Space Station, where it is right now
+    warp(false); SFX.humStop();
+    const iss = await within(live.iss, 1500);
+    if (iss && !run.skipped) {
+      globe.pointsData([]).ringsData([{ lat: iss.lat, lng: iss.lon }])
+        .htmlElementsData([{ lat: iss.lat, lng: iss.lon, alt: iss.alt / 6371, el: labelEl("ISS", "win") }]);
+      globe.pointOfView({ lat: iss.lat, lng: iss.lon, altitude: 2 }, reduced() ? 0 : 1600);
+      const where = (await within(placeName(+iss.lat.toFixed(1), +iss.lon.toFixed(1)), 1200)) || coord(iss.lat, iss.lon);
+      say(G.iss(nf(iss.alt), nf(Math.round(iss.vel / 100) * 100), where));
+      await pause(5200);
+    }
+
+    // 4. re-entry over the best twin
+    sfx(() => SFX.reentry(4)); say(G.reentry);
+    const ENTRY = 4600;
     if (!run.skipped) $("#plasma").classList.add("on");
     globe.pointsData([]).htmlElementsData([]).ringsData([]); // score towers would fill the screen this close
-    hud(true, { phase: H.entry(siteShort), labels: [H.alt, H.speed, H.phase], note: "", k: 0 });
+    hud(true, { phase: H.entry(siteShort), labels: [H.alt, H.speed, H.phase, ""], note: "", k: 0 });
     globe.pointOfView({ lat: win.lat, lng: win.lon, altitude: 0.5 }, reduced() || run.skipped ? 0 : ENTRY);
     await Promise.all([
       flyShip({ x: -80, y: -80 }, globeCenter(), 135, [1.4, 0.35], ENTRY),
       tween(ENTRY, k => {
         if (k > 0.55) $("#plasma").classList.remove("on");
         const ph = k < 0.3 ? 0 : k < 0.65 ? 1 : k < 0.97 ? 2 : 3;
-        hud(true, { k, values: [`${nf(120 * (1 - k) ** 1.6, 1)} km`, `${nf(V1 * (1 - k) ** 2, 2)} km/s`, H.phases[ph]] });
+        hud(true, { k, values: [`${nf(120 * (1 - k) ** 1.6, 1)} km`, `${nf(V1 * 3600 * (1 - k) ** 2)} km/h`, H.phases[ph], ""] });
       }),
     ]);
     $("#plasma").classList.remove("on");
 
-    // 4. touchdown
+    // 5. touchdown
     track(ship.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: "forwards" }));
-    // this close to the ground the score towers would fill the screen: only the lander and its name
     globe.pointsData([]).arcsData([]).ringsData([{ lat: win.lat, lng: win.lon }])
       .htmlElementsData([{ lat: win.lat, lng: win.lon, alt: 0.02, el: landerEl() }, { lat: win.lat, lng: win.lon, alt: 0.02, el: labelEl(siteShort, "win") }]);
     const td = $("#touchdown");
     td.innerHTML = `<h2>${esc(T().touchdown.title(siteShort))}</h2><p>${esc(T().touchdown.sub(crewName()))}</p>`;
     hud(false); $("#terminal").hidden = true;
     td.hidden = false; sfx(() => SFX.touchdown());
-    await pause(2600);
+    say(G.touchdown(siteShort));
+    await pause(2400);
+    td.hidden = true;
 
-    // 5. debrief
-    td.hidden = true; hud(false); $("#terminal").hidden = true; $("#skipBtn").hidden = true; $("#countdown").hidden = true;
-    warp(false); SFX.humStop(); $("#plasma").classList.remove("on"); $("#flash").classList.remove("on");
-    ship.getAnimations().forEach(a => a.cancel());
+    // 6. open the hatch: the first look outside is a real photograph of the site
+    await hatchClose(T().hatch.opening, 1100);
+    $("#cockpit").classList.remove("on");
+    showOutside(win);
+    await hatchOpen();
+    say(G.outside(siteShort));
+    await waitButton($("#outGo"), 8000);
+
+    // 7. debrief
+    endJourney();
     run = null;
     go("verdict");
     showEarthResults(results, true);
@@ -512,6 +630,7 @@
     p.querySelectorAll(".tabs button").forEach(b => (b.onclick = () => {
       const prev = state.tab;
       state.tab = b.dataset.tab; renderVerdictPanel();
+      Guide.say(T().guide.tabs[state.tab]);
       $("#hint").hidden = state.tab !== "scan";
       if (state.peek) unpeek(false);
       if (["camp", "map"].includes(prev) && prev !== state.tab) showEarthResults(rank(), true);
@@ -679,6 +798,7 @@
       Object.entries(TW.geoAxes(geo, rel.relief_m)).forEach(([k, v]) => { s[k] = v; s.geo_kind[k] = GEO_KIND[k]; });
       s.fp = TW.fingerprint(s);
       state.scan = s; state.selectedId = "scan";
+      Guide.say(T().guide.scanDone(short(reverseTwins(s)[0].t.name)));
     } catch (e) {
       state.scan = null;
     }
@@ -1069,18 +1189,21 @@ _Earth Analogs · NASA Space Apps 2026 · ${new Date().toISOString().slice(0, 10
 
   // ---------- boot ----------
   $("#startBtn").onclick = () => go("crew");
-  $("#soundBtn").onclick = () => { SFX.set(!SFX.on); renderChrome(); SFX.go(); };
+  $("#soundBtn").onclick = () => { SFX.set(!SFX.on); renderChrome(); SFX.go(); if (SFX.on) Guide.repeat(); else Guide.hush(); };
   $("#skipBtn").onclick = skipJourney;
   addEventListener("keydown", e => { if (e.key === "Escape" && run) skipJourney(); });
   $("#homeBtn").onclick = goHome;
   $("#earthBtn").onclick = () => { state.scan = null; state.targetId = null; ctl.autoRotate = false; go("earth"); showEarthMode(true); };
   document.querySelectorAll("#lang button").forEach(b => (b.onclick = () => {
-    state.lang = b.dataset.l; renderChrome(); renderPanel();
+    state.lang = b.dataset.l; renderChrome(); renderPanel(); if (!run) guideStage(state.stage);
     if (state.stage === "verdict" && state.tab !== "camp") showEarthResults(rank(), false);
   }));
 
+  Guide.init({ voiceOn: () => SFX.on, lang: () => state.lang });
+  Guide.show(true);
   renderChrome(); layoutGlobe();
   globe.pointOfView({ lat: 10, lng: -40, altitude: 2.3 }, 0);
+  if (!location.hash) setTimeout(() => state.stage === "intro" && Guide.say(T().guide.intro), 900);
   if (readHash()) {
     state.selectedId = rank()[0].site.id; ctl.autoRotate = false;
     go("verdict"); showEarthResults(rank(), true);
