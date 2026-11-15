@@ -416,7 +416,9 @@
   }
   const fmtDate = d => d.toLocaleDateString(state.lang === "es" ? "es-EC" : "en-US", { day: "numeric", month: "long", year: "numeric" });
   const coord = (lat, lon) => `${Math.abs(lat).toFixed(1)}° ${lat >= 0 ? "N" : "S"}, ${Math.abs(lon).toFixed(1)}° ${lon >= 0 ? "E" : state.lang === "es" ? "O" : "W"}`;
-  const say = text => { if (!run?.skipped) Guide.say(text); };
+  // journey lines queue up so Vega never cuts herself off; settle() waits for her when the voice is on
+  const say = text => { if (!run?.skipped) Guide.say(text, { queue: true }); };
+  const settle = () => (SFX.on && run && !run.skipped ? within(Guide.idle(), 25000) : Promise.resolve());
   const within = (p, ms) => Promise.race([p, sleep(ms).then(() => null), run.skipP.then(() => null)]);
 
   async function hatchClose(text, ms) {
@@ -443,7 +445,7 @@
     $("#outside").hidden = false;
   }
   function waitButton(btn, ms) {
-    return new Promise(res => { const done = () => { btn.onclick = null; res(); }; btn.onclick = done; pause(ms).then(done); });
+    return new Promise(res => { const done = how => { btn.onclick = null; res(how); }; btn.onclick = () => done("click"); pause(ms).then(() => done("time")); });
   }
   function endJourney() {
     $("#touchdown").hidden = true; hud(false); $("#terminal").hidden = true; $("#skipBtn").hidden = true; $("#countdown").hidden = true;
@@ -487,6 +489,7 @@
     for (const k of ["relief", "ice", "light"]) if (prov[k]?.kind === "measured") await typeLine(esc(PROV(prov[k].text)));
     await typeLine(L.profile(PL(state.profile)));
     await pollSystems(win);
+    await settle();
     await countdown();
 
     // 2. lift-off and cruise back to Earth: today's real distance, time compressed (said on the HUD)
@@ -501,7 +504,7 @@
     warp(true); sfx(() => SFX.humStart());
     hud(true, { phase: H.cruise(t.body), crew: `${crewName()}, ${roleLabel()}`, labels: [H.dist, H.speed, H.travelled, H.time], note: moon ? H.noteMoon : H.noteMars, k: 0 });
     say(moon ? G.cruiseMoon(nf(D0)) : G.cruiseMars(nf(D0 / 1e6, 1)));
-    const CRUISE = 12000;
+    const CRUISE = SFX.on ? 16000 : 12000; // longer when Vega speaks, so the view matches her words
     globe.pointOfView({ lat: win.lat, lng: win.lon - 25, altitude: 2.6 }, reduced() || run.skipped ? 0 : CRUISE);
     await Promise.all([
       tween(CRUISE, k => hud(true, { k, values: [
@@ -518,6 +521,7 @@
       })(),
       (async () => { // the real Earth through the window
         await pause(4800);
+        await settle();
         const epic = await within(live.epic, 1500);
         if (!epic || run.skipped) return;
         const wp = $("#windowPhoto");
@@ -527,6 +531,7 @@
         wp.hidden = false; void wp.offsetWidth; wp.classList.add("on");
         say(G.epic(fmtDate(epic.date)));
         await pause(5600);
+        await settle();
         wp.classList.remove("on"); await pause(900); wp.hidden = true;
       })(),
     ]);
@@ -541,6 +546,7 @@
       const where = (await within(placeName(+iss.lat.toFixed(1), +iss.lon.toFixed(1)), 1200)) || coord(iss.lat, iss.lon);
       say(G.iss(nf(iss.alt), nf(Math.round(iss.vel / 100) * 100), where));
       await pause(5200);
+      await settle();
     }
 
     // 4. re-entry over the best twin
@@ -570,6 +576,7 @@
     td.hidden = false; sfx(() => SFX.touchdown());
     say(G.touchdown(siteShort));
     await pause(2400);
+    await settle();
     td.hidden = true;
 
     // 6. open the hatch: the first look outside is a real photograph of the site
@@ -578,7 +585,7 @@
     showOutside(win);
     await hatchOpen();
     say(G.outside(siteShort));
-    await waitButton($("#outGo"), 8000);
+    if ((await waitButton($("#outGo"), 8000)) === "time") await settle();
 
     // 7. debrief
     endJourney();
@@ -624,6 +631,7 @@
     await typeLine(L.to(esc(tName), Math.round(match.score)));
     await typeLine(L.crew(esc(crewName()), esc(roleLabel())));
     await pollSystems(site);
+    await settle();
     await countdown();
 
     // lift-off from Earth and cruise to the twin
@@ -637,7 +645,7 @@
     warp(true); sfx(() => SFX.humStart());
     hud(true, { phase: H.outbound(t.body), crew: `${crewName()}, ${roleLabel()}`, labels: [H.distTarget, H.speed, H.travelled, H.time], note: moon ? H.noteMoon : H.noteMars, k: 0 });
     say(moon ? G.cruiseOutMoon(nf(D0)) : G.cruiseOutMars(nf(D0 / 1e6, 1)));
-    const CRUISE = 9000;
+    const CRUISE = SFX.on ? 13000 : 9000;
     globe.pointOfView({ lat: t.lat, lng: t.lon - 20, altitude: 2.4 }, reduced() || run.skipped ? 0 : CRUISE);
     await tween(CRUISE, k => hud(true, { k, values: [
       `${nf(D0 * (1 - k))} km`, `${nf((V0 + (V1 - V0) * Math.sqrt(k)) * 3600)} km/h`, `${nf(PATH * k)} km`, H.day(Math.max(1, Math.round(1 + (DAYS - 1) * k))),
@@ -669,6 +677,7 @@
       .sort((a, b) => match.per[b] - match.per[a]).slice(0, 3).map(k => FL(k).charAt(0).toLowerCase() + FL(k).slice(1));
     say(G.arrive(tName, sName, joinList(shared)));
     await pause(3800);
+    await settle();
     td.hidden = true;
 
     // the hatch opens on the orbital view of the twin
@@ -682,7 +691,7 @@
     $("#outGo").textContent = T().outside.plan;
     $("#outside").hidden = false;
     await hatchOpen();
-    await waitButton($("#outGo"), 9000);
+    if ((await waitButton($("#outGo"), 9000)) === "time") await settle();
 
     // next: pick the mission to rehearse at this destination
     endJourney(); run = null;
@@ -743,7 +752,6 @@
       <text x="46" y="50" text-anchor="middle" font-size="24">${score.toFixed(0)}</text><text class="lbl" x="46" y="66" text-anchor="middle" font-size="9">/ 100</text></svg>`;
   }
 
-  let radar = null;
   const helpOpen = new Set(); // tabs whose "?" help box the user has opened
   function renderVerdictPanel() {
     const p = $("#panel"), t = target();
@@ -786,32 +794,94 @@
       <div class="winner">${ring(r.score)}<div><h2>${esc(s.name)}</h2><div class="country">${esc(CTRY(s.country))} ${usage}</div></div></div>
       ${s.scanned ? "" : `<button class="btn place-btn" id="placeBtn">${T().place.btn}</button>`}
       <div class="sec">${T().why}</div>
-      <ul class="reasons">${reasons.map(k => `<li><span><b>${FL(k)}</b><small>${esc(earthDetail(k, s))}</small><small>${t.body === "Moon" ? T().moon : T().mars}: ${esc(targetDetail(k, t))}</small></span><span class="pct" style="color:${matchColor(r.per[k])}">${Math.round(r.per[k] * 100)}%</span></li>`).join("") || "<li>—</li>"}</ul>
+      <ul class="reasons">${reasons.map(k => `<li><span><b>${FL(k)}</b><small>${esc(earthDetail(k, s))}</small><small>${t.body === "Moon" ? T().moon : T().mars}: ${esc(targetDetail(k, t))}</small></span><span class="pct">${Math.round(r.per[k] * 100)} %</span></li>`).join("") || "<li>—</li>"}</ul>
       <div class="sec">${T().cannot}</div>
-      <ul class="reasons bad">${gaps.map(k => `<li><span><b>${FL(k)}</b><small>${esc(earthDetail(k, s))}</small></span><span class="pct" style="color:${matchColor(r.per[k])}">${Math.round(r.per[k] * 100)}%</span></li>`).join("") || "<li>—</li>"}</ul>
-      <div class="radar-wrap"><canvas id="radar"></canvas></div>
+      <ul class="reasons bad">${gaps.map(k => `<li><span><b>${FL(k)}</b><small>${esc(earthDetail(k, s))}</small></span><span class="pct">${Math.round(r.per[k] * 100)} %</span></li>`).join("") || "<li>—</li>"}</ul>
+      <div class="sec">${T().viz.title}</div>
+      ${profileChart(s.fp, t, r.per, w, s.name.split(" – ")[0])}
       ${s.note ? `<p class="note">${esc(NOTE(s))}</p>` : ""}
       ${reverseHtml(s)}
       <div class="sec">${T().dataUsed}</div>
       <div class="chips">${["NASA POWER", "Copernicus DEM", ...new Set(Object.values(t.prov || {}).filter(p => p.kind === "measured").map(p => p.text.split(":")[0]))].map(c => `<span class="chip">${esc(c)}</span>`).join("")}</div>`;
-    drawRadar(s, t);
+    bindTips($("#tabBody"));
     bindReverse();
     const pb = $("#placeBtn"); if (pb) pb.onclick = () => openPlace(s, t);
   }
 
-  function drawRadar(s, t) {
-    if (radar) radar.destroy();
-    radar = new Chart($("#radar"), {
-      type: "radar",
-      data: { labels: KEYS.map(FL), datasets: [
-        { label: short(t.name), data: KEYS.map(k => t[k]), borderColor: "#ff9b47", backgroundColor: "rgba(255,155,71,.14)", pointRadius: 0, borderWidth: 2 },
-        { label: s.name.split(" – ")[0], data: KEYS.map(k => s.fp[k]), borderColor: "#36c2b4", backgroundColor: "rgba(54,194,180,.25)", pointRadius: 0, borderWidth: 2, spanGaps: true },
-      ] },
-      options: { responsive: true, maintainAspectRatio: false, animation: { duration: 400 },
-        scales: { r: { min: 0, max: 1, ticks: { display: false }, grid: { color: "rgba(122,162,255,.15)" }, angleLines: { color: "rgba(122,162,255,.15)" }, pointLabels: { color: "#93a1bd", font: { size: 9 } } } },
-        plugins: { legend: { labels: { color: "#eef2fa", boxWidth: 10, font: { size: 11 } } } } },
+  // ---------- twin profile: one dumbbell per characteristic ----------
+  // Earth (circle) and destination (diamond) on the same 0–1 scale: the gap between them is the difference.
+  function profileChart(earthFp, t, per, w, earthLabel) {
+    const V = T().viz, base = Math.min(...KEYS.map(k => w[k] ?? 1));
+    const rows = KEYS.map(k => ({ k, e: earthFp[k], d: t[k], m: per[k], key: (w[k] ?? 1) > base }));
+    const byMatch = (a, b) => (b.m ?? -1) - (a.m ?? -1);
+    const measured = rows.filter(r => r.m != null), close = measured.filter(r => r.m >= 0.8).length;
+    const world = t.body === "Moon" ? T().moon : T().mars;
+    const row = r => {
+      const lbl = FL(r.k);
+      if (r.m == null) return `<div class="dumb-row nodata"><span class="dumb-label">${lbl}</span><span class="dumb-track"><em>${V.nodata}</em></span><span class="dumb-v"></span></div>`;
+      const lo = Math.min(r.e, r.d) * 100, hi = Math.max(r.e, r.d) * 100;
+      const tip = V.tip(lbl, dec(r.e, 2), world, dec(r.d, 2), Math.round(r.m * 100));
+      const same = Math.abs(r.e - r.d) < 0.03 ? " same" : ""; // equal values: nudge the marks apart so both stay visible
+      return `<div class="dumb-row${same}" tabindex="0" data-tip="${esc(tip)}" aria-label="${esc(tip)}"><span class="dumb-label">${lbl}</span>
+        <span class="dumb-track"><i class="dumb-gap" style="left:${lo}%;width:${hi - lo}%"></i><i class="mk earth" style="left:${r.e * 100}%"></i><i class="mk dest ${t.body}" style="left:${r.d * 100}%"></i></span>
+        <span class="dumb-v">${Math.round(r.m * 100)} %</span></div>`;
+    };
+    const keyRows = rows.filter(r => r.key).sort(byMatch), other = rows.filter(r => !r.key).sort(byMatch);
+    const body = keyRows.length && other.length
+      ? `<div class="dumb-group">${V.key}</div>${keyRows.map(row).join("")}<div class="dumb-group">${V.other}</div>${other.map(row).join("")}`
+      : rows.sort(byMatch).map(row).join("");
+    return `<figure class="dumb">
+      <figcaption><span class="dumb-sum">${V.summary(close, measured.length)}</span>
+        <span class="dumb-legend"><span><i class="mk earth"></i>${esc(earthLabel)}</span><span><i class="mk dest ${t.body}"></i>${esc(short(t.name))}</span></span></figcaption>
+      <div class="dumb-scale" aria-hidden="true"><span></span><span class="dumb-ticks"><span>0</span><span>${dec(0.5, 1)}</span><span>1</span></span><span>${V.match}</span></div>
+      ${body}
+    </figure>`;
+  }
+  function bindTips(root) {
+    let tip = $("#vizTip");
+    if (!tip) { tip = document.createElement("div"); tip.id = "vizTip"; tip.className = "viz-tip"; tip.hidden = true; tip.setAttribute("role", "tooltip"); document.body.appendChild(tip); }
+    const show = (r, x, y) => {
+      tip.textContent = r.dataset.tip; tip.hidden = false;
+      tip.style.left = `${Math.max(8, Math.min(x + 14, innerWidth - tip.offsetWidth - 8))}px`;
+      tip.style.top = `${Math.min(y + 16, innerHeight - tip.offsetHeight - 8)}px`;
+    };
+    root.querySelectorAll(".dumb-row[data-tip]").forEach(r => {
+      r.onpointermove = e => show(r, e.clientX, e.clientY);
+      r.onpointerleave = () => (tip.hidden = true);
+      r.onfocus = () => { const b = r.getBoundingClientRect(); show(r, b.left + 120, b.bottom - 10); };
+      r.onblur = () => (tip.hidden = true);
     });
   }
+
+  // "Compare": an Earth place against one Moon or Mars site, with the numbers
+  function openCompare(site, id) {
+    const t = TARGETS.find(x => x.id === id), V = T().viz, P = T().place;
+    const w = TW.profileWeights("balanced"), c = TW.compare(site.fp, t, w);
+    const sName = site.scanned ? T().guide.yourPlace.replace(/^./, ch => ch.toUpperCase()) : site.name.split(" – ")[0];
+    const world = t.body === "Moon" ? T().moon : T().mars;
+    const facts = (state.lang === "es" && I18N_TARGET_FACTS.es[t.id]) || t.facts || [];
+    let m = $("#cmpModal");
+    if (!m) { m = document.createElement("div"); m.id = "cmpModal"; m.className = "modal"; document.body.appendChild(m); }
+    m.innerHTML = `<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="cmpTitle">
+      <header class="modal-head"><div><small>${T().reverse.title}</small><h2 id="cmpTitle">${V.versus(esc(sName), esc(short(t.name)))}</h2><span class="help">${world}</span></div>
+        <button class="modal-x" id="cmpClose" aria-label="${P.close}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+      <div class="modal-body">
+        <div class="winner">${ring(c.score)}<p class="lead">${V.lead}</p></div>
+        ${profileChart(site.fp, t, c.per, w, sName)}
+        <div class="sec">${T().brief.why}</div>
+        <ul class="facts">${facts.map(f => `<li>${esc(f)}</li>`).join("")}</ul>
+        <button class="btn" id="cmpGlobe">${V.onGlobe(esc(short(t.name)))}</button>
+      </div></div>`;
+    m.hidden = false;
+    document.body.classList.add("modal-open");
+    bindTips(m);
+    const close = () => { m.hidden = true; document.body.classList.remove("modal-open"); $("#vizTip").hidden = true; };
+    $("#cmpClose").onclick = close;
+    m.onclick = e => { if (e.target === m) close(); };
+    $("#cmpGlobe").onclick = () => { close(); peek(id); };
+    $("#cmpClose").focus();
+  }
+  addEventListener("keydown", e => { if (e.key === "Escape" && $("#cmpModal") && !$("#cmpModal").hidden) $("#cmpClose").click(); });
 
   function tabTop(results) {
     const lo = Math.min(...results.map(r => r.score)), hi = Math.max(...results.map(r => r.score));
@@ -1041,13 +1111,14 @@
     return TARGETS.map(t => ({ t, ...TW.compare(site.fp, t, w) })).sort((a, b) => b.score - a.score);
   }
   function reverseHtml(site) {
+    state.revSite = site;
     const list = reverseTwins(site).slice(0, 3);
     return `<div class="sec">${T().reverse.title}</div><p class="help">${T().reverse.lead}</p>
       <ul class="twins">${list.map((r, i) => `<li><span class="orb ${r.t.body}"></span><span><b>${esc(short(r.t.name))}</b><small>${r.t.body === "Moon" ? T().moon : T().mars}</small>
         <span class="bar"><i style="width:${r.score}%;background:${i === 0 ? "var(--target)" : "var(--accent)"}"></i></span></span>
-        <span class="v">${r.score.toFixed(0)}</span><button class="mini-btn" data-peek="${r.t.id}">${T().reverse.see}</button></li>`).join("")}</ul>`;
+        <span class="v">${r.score.toFixed(0)}</span><button class="mini-btn" data-cmp="${r.t.id}">${T().reverse.see}</button></li>`).join("")}</ul>`;
   }
-  function bindReverse() { document.querySelectorAll("[data-peek]").forEach(b => (b.onclick = () => peek(b.dataset.peek))); }
+  function bindReverse() { document.querySelectorAll("[data-cmp]").forEach(b => (b.onclick = () => openCompare(state.revSite, b.dataset.cmp))); }
 
   function peek(id) {
     const t = TARGETS.find(x => x.id === id);
@@ -1094,8 +1165,9 @@
       body = `<div class="scanbox"><b>${esc(sc.name)}</b><br><small class="help">${esc(CTRY(sc.country))}${sc.elev != null ? ` · ${Math.round(sc.elev)} m` : ""}</small>
         ${sc.scanned ? "" : `<button class="btn place-btn" id="placeBtn">${T().place.btn}</button>`}
         ${reverseHtml(sc)}
-        <div class="radar-wrap"><canvas id="radar"></canvas></div></div>`;
-      setTimeout(() => { if ($("#radar")) drawRadar(sc, best.t); }, 0);
+        <div class="sec">${T().viz.title}</div>
+        ${profileChart(sc.fp, best.t, best.per, TW.profileWeights("balanced"), sc.scanned ? T().guide.yourPlace.replace(/^./, ch => ch.toUpperCase()) : sc.name.split(" – ")[0])}</div>`;
+      setTimeout(() => bindTips($("#panel")), 0);
     }
     $("#panel").innerHTML = `<div class="p-body"><h2 class="p-title">${E.title}</h2><p class="p-sub">${E.help}</p>${body}</div>
       <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button>${best && !state.scanBusy

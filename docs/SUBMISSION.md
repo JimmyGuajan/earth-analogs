@@ -70,7 +70,7 @@ Earth Analogs also does five more things:
 - *Robustness:* when five terrain axes switched from literature estimates to measurements, the findings above kept their places.
 
 **Tools**
-HTML/CSS/JavaScript, globe.gl (Three.js), Chart.js, Python 3 + NumPy + Pillow.
+HTML/CSS/JavaScript, globe.gl (Three.js), Web Audio and Web Speech APIs, Python 3 + NumPy + Pillow, Microsoft Planetary Computer data API.
 
 **Creativity**
 Analog selection becomes a recommender problem with measured, comparable fingerprints across three worlds. The question changes from "which famous site?" to "which combination of sites covers this mission, and what is left?". The result is told as a mission story: launch, travel, landing and verdict.

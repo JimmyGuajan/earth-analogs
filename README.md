@@ -20,7 +20,7 @@ Earth Analogs turns every place (an Earth site, a Moon or Mars landing site, or 
    - Re-entry over the winning site (altitude, speed, phase), then touchdown.
    - The hatch opens: the first look outside is a real photograph of the site (Wikimedia Commons, credited) or its satellite view.
    - "Skip the journey" (or Esc) jumps straight to the verdict, and `prefers-reduced-motion` shortens every step.
-6. **Verdict.** *"Jimmy, based on this data analysis, the best place on Earth to rehearse … is …"*, with the reasons, what the site **cannot** simulate, and a radar comparison. **Certificate** downloads a PNG with your patch, the mission code, the destination, the Earth twin and its score.
+6. **Verdict.** *"Jimmy, based on this data analysis, the best place on Earth to rehearse … is …"*, with the reasons, what the site **cannot** simulate, and a **side-by-side profile**: one row per characteristic with the Earth site (circle) and the destination (diamond) on the same 0–1 scale, the mission's key characteristics first. **Compare** on any reverse twin opens the same chart for that Moon or Mars site. **Certificate** downloads a PNG with your patch, the mission code, the destination, the Earth twin and its score.
 7. **Explore.** Five tabs:
    - **Top 10**: best match, *untapped* (new analogs) or *field-ready*.
    - **Campaign**: 3 complementary sites linked by arcs on the globe.
