@@ -25,7 +25,7 @@
     set(k, v) { try { localStorage.setItem("ea." + k, JSON.stringify(v)); } catch { /* private mode */ } },
   };
   const TEX = { Earth: "assets/earth.jpg", Moon: "assets/moon.jpg", Mars: "assets/mars.jpg" };
-  const POWER_PARAMS = "T2M,T2M_RANGE,T2M_MIN,T2M_MAX,PRECTOTCORR,RH2M,PS,ALLSKY_SFC_SW_DWN,ALLSKY_SFC_UV_INDEX";
+  const POWER_PARAMS = "T2M,T2M_RANGE,T2M_MIN,T2M_MAX,PRECTOTCORR,RH2M,PS,ALLSKY_SFC_SW_DWN,ALLSKY_SFC_UV_INDEX,WS10M";
   const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
   const LST_YEAR = 2023;
   const GEO_KIND = { basalt: "mapped", salts: "mapped", sediment: "mapped", ice: "measured", regolith: "measured" };
@@ -797,6 +797,8 @@
       <ul class="reasons">${reasons.map(k => `<li><span><b>${FL(k)}</b><small>${esc(earthDetail(k, s))}</small><small>${t.body === "Moon" ? T().moon : T().mars}: ${esc(targetDetail(k, t))}</small></span><span class="pct">${Math.round(r.per[k] * 100)} %</span></li>`).join("") || "<li>—</li>"}</ul>
       <div class="sec">${T().cannot}</div>
       <ul class="reasons bad">${gaps.map(k => `<li><span><b>${FL(k)}</b><small>${esc(earthDetail(k, s))}</small></span><span class="pct">${Math.round(r.per[k] * 100)} %</span></li>`).join("") || "<li>—</li>"}</ul>
+      <div class="sec">${PROCESSES.text[state.lang].title}</div>
+      ${processesHtml(s, t)}
       <div class="sec">${T().viz.title}</div>
       ${profileChart(s.fp, t, r.per, w, s.name.split(" – ")[0])}
       ${s.note ? `<p class="note">${esc(NOTE(s))}</p>` : ""}
@@ -806,6 +808,39 @@
     bindTips($("#tabBody"));
     bindReverse();
     const pb = $("#placeBtn"); if (pb) pb.onclick = () => openPlace(s, t);
+  }
+
+  // ---------- processes, not only places ----------
+  // Which of the seven processes act at an Earth site, read from measured data.
+  function earthProcesses(s) {
+    const fp = s.fp || {}, pw = s.power || {}, g = s.geo || {}, E = PROCESSES.text[state.lang].ev;
+    const out = {};
+    if (pw.ws10m != null && pw.ws10m >= 3.5 && (fp.barren ?? 0) >= 0.6 && (fp.aridity ?? 0) >= 0.5) out.wind = ["now", E.wind(dec(pw.ws10m, 1))];
+    // temporary water (floods, playas that fill and dry) away from the sea: sediment being laid down today
+    const temp = (g.gsw?.ever_wet ?? 0) - (g.gsw?.mostly_wet ?? 0);
+    if (temp >= 0.02 && (g.worldcover?.water ?? 0) < 0.02) out.water = ["now", E.waterNow(`${Math.round(temp * 100)} %`)];
+    else if ((fp.sediment ?? 0) >= 0.6) out.water = ["old", E.waterOld];
+    if ((fp.salts ?? 0) >= 0.5 && (fp.aridity ?? 0) >= 0.6 && pw.precip != null) out.evap = ["now", E.evap(dec(pw.precip * 365, 0))];
+    if ((fp.ice ?? 0) >= 0.5) out.ice = ["now", g.lst ? E.ice(dec(g.lst.lst_mean_c, 1)) : E.iceLit];
+    if ((fp.basalt ?? 0) >= 0.6) out.volcanic = PROCESSES.activeVolcano.includes(s.id) ? ["now", E.volcanicNow] : ["old", E.volcanicOld];
+    if ((fp.swing ?? 0) >= 0.6 && pw.t2m_range != null) out.thermal = ["now", E.thermal(dec(pw.t2m_range, 1))];
+    if ((fp.impact ?? 0) >= 0.6) out.impact = ["old", E.impact];
+    return out;
+  }
+  // processes an Earth site shares with a destination, with what each pairing teaches
+  function processesHtml(s, t) {
+    const X = PROCESSES.text[state.lang], L = PROCESSES.label[state.lang], tName = short(t.name).split(" – ")[0];
+    const here = earthProcesses(s), there = PROCESSES.target[t.id] || {};
+    const shared = PROCESSES.order.filter(k => here[k] && there[k])
+      .sort((a, b) => (here[b][0] === "now" && there[b][0] === "old") - (here[a][0] === "now" && there[a][0] === "old"));
+    if (!shared.length) return `<p class="help">${X.none}</p>`;
+    return `<ul class="procs">${shared.map(k => {
+      const [eWhen, eTxt] = here[k], [tWhen, tEs, tEn] = there[k];
+      return `<li><b>${L[k]}</b>
+        <div class="proc-row"><span class="ptag earth ${eWhen}">${X.earthTag[eWhen]}</span><span>${esc(eTxt)}</span></div>
+        <div class="proc-row"><span class="ptag dest ${t.body} ${tWhen}">${esc(X.targetTag[tWhen](tName))}</span><span>${esc(state.lang === "es" ? tEs : tEn)}</span></div>
+        <p class="proc-lesson">${X.lesson[`${eWhen}-${tWhen}`]}</p></li>`;
+    }).join("")}</ul>`;
   }
 
   // ---------- twin profile: one dumbbell per characteristic ----------
@@ -868,6 +903,8 @@
       <div class="modal-body">
         <div class="winner">${ring(c.score)}<p class="lead">${V.lead}</p></div>
         ${profileChart(site.fp, t, c.per, w, sName)}
+        <div class="sec">${PROCESSES.text[state.lang].title}</div>
+        ${processesHtml(site, t)}
         <div class="sec">${T().brief.why}</div>
         <ul class="facts">${facts.map(f => `<li>${esc(f)}</li>`).join("")}</ul>
         <button class="btn" id="cmpGlobe">${V.onGlobe(esc(short(t.name)))}</button>
@@ -964,7 +1001,7 @@
     const ann = k => (p[k] && p[k].ANN !== fill ? p[k].ANN : null);
     const sw = MONTHS.map(m => p.ALLSKY_SFC_SW_DWN[m]).filter(v => v !== fill);
     return { t2m: ann("T2M"), t2m_range: ann("T2M_RANGE"), t2m_min: ann("T2M_MIN"), t2m_max: ann("T2M_MAX"), precip: ann("PRECTOTCORR"), rh: ann("RH2M"),
-      ps: ann("PS"), sw: ann("ALLSKY_SFC_SW_DWN"), sw_min: Math.min(...sw), sw_max: Math.max(...sw), uv: ann("ALLSKY_SFC_UV_INDEX"), grid_elev: raw.geometry.coordinates[2] };
+      ps: ann("PS"), sw: ann("ALLSKY_SFC_SW_DWN"), sw_min: Math.min(...sw), sw_max: Math.max(...sw), uv: ann("ALLSKY_SFC_UV_INDEX"), ws10m: ann("WS10M"), grid_elev: raw.geometry.coordinates[2] };
   }
   async function fetchReliefWindow(lat, lon) {
     // 5×5 grid over ±15 km plus the centre point (coarser than the offline 2 km grid, same P95–P5 metric)

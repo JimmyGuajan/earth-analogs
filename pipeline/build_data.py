@@ -174,6 +174,29 @@ def merge_ndvi(sites):
             s["barren"] = round(min(max((0.5 - ndvi) / 0.4, 0), 1), 3)
 
 
+def earth_wind(sites):
+    """Mean 10 m wind speed 2001-2025 (NASA POWER WS10M) for the aeolian process.
+    Cached on its own (data/wind_cache.json) so the main POWER cache stays valid."""
+    path = DATA / "wind_cache.json"
+    cache = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    for s in sites:
+        key = f"{s['lat']},{s['lon']}"
+        if key not in cache:
+            url = URL.format(p="WS10M", lat=s["lat"], lon=s["lon"])
+            for attempt in range(4):
+                try:
+                    with urllib.request.urlopen(url, timeout=90, context=ssl.create_default_context()) as r:
+                        v = json.load(r)["properties"]["parameter"]["WS10M"]["ANN"]
+                    cache[key] = None if v == -999 else v
+                    break
+                except Exception as e:
+                    print(f"   retry {attempt + 1}: {e}")
+                    time.sleep(3 * (attempt + 1))
+            path.write_text(json.dumps(cache, indent=1), encoding="utf-8")
+            time.sleep(0.4)
+        s["power"]["ws10m"] = cache.get(key)
+
+
 GEO_KIND = {"basalt": "mapped", "salts": "mapped", "sediment": "mapped", "ice": "measured", "regolith": "measured"}
 
 
@@ -221,6 +244,7 @@ def main():
     for s in sites:
         s["elev"] = elev[f"{s['lat']},{s['lon']}"]
     earth_relief(sites)
+    earth_wind(sites)
     merge_ndvi(sites)
     merge_geology(sites)
     merge_planetary(targets)
