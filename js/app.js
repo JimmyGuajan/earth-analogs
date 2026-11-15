@@ -67,6 +67,7 @@
   const STOPS = () => (STOPS_C ||= [0, 1, 2, 3].map(i => getComputedStyle(document.documentElement).getPropertyValue(`--ramp-${i}`).trim()));
   const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
   function scoreColor(score, lo = 30, hi = 75) {
+    if (!Number.isFinite(score)) return STOPS()[0];
     const st = STOPS(), t = TW.clamp((score - lo) / (hi - lo)) * (st.length - 1);
     const i = Math.min(Math.floor(t), st.length - 2), f = t - i;
     const a = hex(st[i]), b = hex(st[i + 1]);
@@ -1411,7 +1412,7 @@
     const ann = k => (p[k] && p[k].ANN !== fill ? p[k].ANN : null);
     const sw = MONTHS.map(m => p.ALLSKY_SFC_SW_DWN[m]).filter(v => v !== fill);
     return { t2m: ann("T2M"), t2m_range: ann("T2M_RANGE"), t2m_min: ann("T2M_MIN"), t2m_max: ann("T2M_MAX"), precip: ann("PRECTOTCORR"), rh: ann("RH2M"),
-      ps: ann("PS"), sw: ann("ALLSKY_SFC_SW_DWN"), sw_min: Math.min(...sw), sw_max: Math.max(...sw), uv: ann("ALLSKY_SFC_UV_INDEX"), ws10m: ann("WS10M"), grid_elev: raw.geometry.coordinates[2] };
+      ps: ann("PS"), sw: ann("ALLSKY_SFC_SW_DWN"), sw_min: sw.length ? Math.min(...sw) : null, sw_max: sw.length ? Math.max(...sw) : null, uv: ann("ALLSKY_SFC_UV_INDEX"), ws10m: ann("WS10M"), grid_elev: raw.geometry.coordinates[2] };
   }
   async function fetchReliefWindow(lat, lon) {
     // 5×5 grid over ±15 km plus the centre point (coarser than the offline 2 km grid, same P95–P5 metric)
@@ -1723,7 +1724,7 @@
     drawHeatmap();
     const hs = hotspots(scored);
     $("#tabBody").innerHTML = `<h2 class="p-title">${M.title}</h2><p class="p-sub">${M.lead(scored.length, dec(window.TW_GRID.step, 1))}</p>
-      <div class="legend-bar"><span>${Math.round(Math.min(...scored.map(c => c.score)))}</span><i style="background:linear-gradient(90deg,${STOPS.join(",")})"></i><span>${Math.round(Math.max(...scored.map(c => c.score)))}</span></div>
+      <div class="legend-bar"><span>${Math.round(Math.min(...scored.map(c => c.score)))}</span><i style="background:linear-gradient(90deg,${STOPS().join(",")})"></i><span>${Math.round(Math.max(...scored.map(c => c.score)))}</span></div>
       <p class="help">${M.climateOnly}</p>
       <div class="sec">${M.hotspots}</div>
       <ol class="rank" id="hotList">${hs.map((c, i) => `<li data-i="${i}"><div><b id="hs${i}">${dec(c.lat, 1)}°, ${dec(c.lon, 1)}°</b><small>${dec(c.power.t2m, 1)} °C, ${(c.power.precip * 365).toFixed(0)} mm/${state.lang === "es" ? "año" : "yr"}, ${c.power.ps.toFixed(0)} kPa</small></div><span class="v">${c.score.toFixed(0)}</span></li>`).join("")}</ol>`;
@@ -1809,7 +1810,7 @@
     document.body.classList.remove("modal-open");
     if (opener && opener.isConnected) opener.focus();
   }
-  addEventListener("keydown", e => { if (e.key === "Escape") closePlace(); });
+  addEventListener("keydown", e => { if (e.key === "Escape" && $("#placeModal") && !$("#placeModal").hidden) closePlace(); });
 
   // ---------- exports ----------
   function download(name, text, type) {
@@ -1866,7 +1867,7 @@ _Earth Analogs · NASA Space Apps 2026 · ${new Date().toISOString().slice(0, 10
   function readHash() {
     const h = new URLSearchParams(location.hash.slice(1));
     const t = TARGETS.find(x => x.id === h.get("t"));
-    if (!t || !PROFILES[h.get("p")]) return false;
+    if (!t || !Object.hasOwn(PROFILES, h.get("p"))) return false;
     state.targetId = t.id; state.body = t.body; state.profile = state.myProfile = h.get("p");
     if (["match", "untapped", "ready"].includes(h.get("m"))) state.mode = h.get("m");
     return true;
@@ -1898,8 +1899,9 @@ _Earth Analogs · NASA Space Apps 2026 · ${new Date().toISOString().slice(0, 10
   Guide.show(true);
   renderChrome(); layoutGlobe();
   globe.pointOfView({ lat: 10, lng: -40, altitude: 2.3 }, 0);
-  if (!location.hash) setTimeout(() => state.stage === "intro" && Guide.say(T().guide.intro), 900);
-  if (readHash()) {
+  const linked = readHash();
+  if (!linked) setTimeout(() => state.stage === "intro" && Guide.say(T().guide.intro), 900);
+  if (linked) {
     state.selectedId = rank()[0].site.id; ctl.autoRotate = false;
     go("verdict"); showEarthResults(rank(), true);
   }

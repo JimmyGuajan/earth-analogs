@@ -100,7 +100,7 @@ window.I18N = {
       outside: "Sitios de la NASA fuera del catálogo", outsideHelp: "Toca uno de terreno y lo medimos en vivo. Los cerrados (hábitats, bajo el mar) ensayan el aislamiento, no el terreno: esa mitad la cubre este análisis.",
       indoor: "aislamiento", scan: "Medir", see: "Ver",
       indoorSaid: s => `${s} ensaya el aislamiento de una misión larga, no el terreno. Para el terreno sirven los sitios de esta lista.`,
-      credit: "Fuentes: NASA, «10 things to know about planetary analogs», y NASA Image and Video Library.",
+      credit: "Fuentes: la guía de la NASA sobre análogos planetarios y la NASA Image and Video Library.",
     },
     guideName: "Comandante Vega",
     guideHide: "Ocultar la guía",

@@ -39,7 +39,7 @@
   };
 
   function profileWeights(id) {
-    const p = PROFILES[id] || PROFILES.balanced;
+    const p = Object.hasOwn(PROFILES, id) ? PROFILES[id] : PROFILES.balanced;
     const base = p.base ?? 1;
     const w = {};
     KEYS.forEach(k => (w[k] = p.w[k] ?? base));
@@ -72,7 +72,7 @@
       // thin air lets more UV through: add an altitude bonus
       out.radiation = clamp(0.45 * sw + 0.4 * uv + 0.15 * (out.thin_air ?? 0));
     }
-    if (pw.sw_min != null && pw.sw_max) {
+    if (Number.isFinite(pw.sw_min) && pw.sw_max > 0) {
       out.light = clamp((1 - pw.sw_min / pw.sw_max - 0.15) / 0.8);
     }
     return out;
