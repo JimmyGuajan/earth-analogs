@@ -45,7 +45,7 @@ window.I18N = {
       },
       end: "Listo. Puedes repetir el recorrido cuando quieras con el botón «Recorrido guiado».",
     },
-    rec: "Recomendada para tu función",
+    rec: "Recomendada",
     roleTip: {
       title: r => `Para tu función: ${r}`,
       cmd: (c, s, a) => `Ningún sitio lo tiene todo: combinando 3 cubres el ${c} % del destino (este solo, el ${s} %).` + (a ? ` Llegar aquí es ${a}.` : ""),
@@ -100,9 +100,9 @@ window.I18N = {
       },
       mission: "¿Qué quieres ensayar? Cada misión da más peso a unas características. ISRU, por ejemplo, mira sobre todo el hielo y el frío.",
       missionRole: {
-        cmd: "Como comandante, te recomiendo «Misión general»: ves el destino completo. Las misiones recomendadas para tu función llevan una etiqueta.",
-        geo: "Para geología te recomiendo «Astrobiología» o «Cuevas»: ahí pesan las rocas, el hielo y el agua antigua. Llevan una etiqueta.",
-        eng: "Para ingeniería te recomiendo «Hábitat» o «Movilidad»: ahí pesan el regolito, el relieve y los cambios de temperatura. Llevan una etiqueta.",
+        cmd: "Como comandante, te recomiendo «Misión general»: ves el destino completo. La verás marcada con la insignia naranja «Recomendada».",
+        geo: "Para geología te recomiendo «Astrobiología» o «Cuevas»: ahí pesan las rocas, el hielo y el agua antigua. Están marcadas con la insignia naranja «Recomendada».",
+        eng: "Para ingeniería te recomiendo «Hábitat» o «Movilidad»: ahí pesan el regolito, el relieve y los cambios de temperatura. Están marcadas con la insignia naranja «Recomendada».",
       },
       brief: "Este es tu briefing. Cuando quieras, acepta la misión y subimos a la nave.",
       boarding: "Subimos a bordo. Cierro la escotilla.",
@@ -321,7 +321,7 @@ window.I18N = {
       },
       end: "Done. You can repeat the tour any time with the \"Guided tour\" button.",
     },
-    rec: "Recommended for your role",
+    rec: "Recommended",
     roleTip: {
       title: r => `For your role: ${r}`,
       cmd: (c, s, a) => `No single site has everything: combining 3 covers ${c}% of the destination (this one alone, ${s}%).` + (a ? ` Getting here is ${a}.` : ""),
@@ -376,9 +376,9 @@ window.I18N = {
       },
       mission: "What do you want to rehearse? Each mission weighs some characteristics more. ISRU, for example, looks mostly at ice and cold.",
       missionRole: {
-        cmd: "As commander, I recommend \"General mission\": you see the whole destination. Missions recommended for your role carry a tag.",
-        geo: "For geology I recommend \"Astrobiology\" or \"Caves\": rocks, ice and ancient water weigh most there. They carry a tag.",
-        eng: "For engineering I recommend \"Habitat\" or \"Mobility\": regolith, relief and temperature swings weigh most there. They carry a tag.",
+        cmd: "As commander, I recommend \"General mission\": you see the whole destination. You will see it marked with the orange \"Recommended\" badge.",
+        geo: "For geology I recommend \"Astrobiology\" or \"Caves\": rocks, ice and ancient water weigh most there. They carry the orange \"Recommended\" badge.",
+        eng: "For engineering I recommend \"Habitat\" or \"Mobility\": regolith, relief and temperature swings weigh most there. They carry the orange \"Recommended\" badge.",
       },
       brief: "This is your briefing. Whenever you are ready, accept the mission and we board the ship.",
       boarding: "Boarding now. Closing the hatch.",

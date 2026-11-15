@@ -269,7 +269,7 @@
       p.innerHTML = `<div class="p-body">
         <div class="chosen"><span class="orb ${t.body}" style="width:22px;height:22px;border-radius:50%;display:inline-block"></span><span><b>${esc(short(t.name))}</b> · ${t.body === "Moon" ? T().moon : T().mars}</span></div>
         <h2 class="p-title" style="margin-bottom:14px">${T().chooseMission}</h2>
-        <div class="missions">${Object.keys(PROFILES).sort((a, b) => recFor(b) - recFor(a)).map(id => `<button class="mission ${id === state.profile ? "on" : ""}" data-id="${id}">${icon(id)}${recFor(id) ? `<em class="rec">${T().rec}</em>` : ""}<b>${PL(id)}</b><span>${I18N_PROFILE_DESC[state.lang][id]}</span></button>`).join("")}</div>
+        <div class="missions">${Object.keys(PROFILES).sort((a, b) => recFor(b) - recFor(a)).map(id => `<button class="mission ${id === state.profile ? "on" : ""} ${recFor(id) ? "is-rec" : ""}" data-id="${id}">${icon(id)}${recFor(id) ? `<em class="rec">${T().rec}</em>` : ""}<b>${PL(id)}</b><span>${I18N_PROFILE_DESC[state.lang][id]}</span></button>`).join("")}</div>
       </div>
       <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button><button class="btn big" id="launchBtn" ${state.profile ? "" : "disabled"}>${T().launch}</button></div>`;
       p.querySelectorAll(".mission").forEach(b => (b.onclick = () => {
