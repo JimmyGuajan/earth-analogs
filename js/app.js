@@ -813,6 +813,7 @@
       `<div class="about-row"><details class="about" ${helpOpen.has(tab) ? "open" : ""}><summary>${T().helpQ}</summary><p>${T().help[tab]}</p></details><button class="mini-btn ${tourSeen ? "" : "cue"}" id="tourBtn">${touring ? T().tour.resumeBtn : T().tour.start}</button></div>`);
     $("#tourBtn").onclick = startTour;
     $("#tabBody .about").addEventListener("toggle", e => (e.target.open ? helpOpen.add(tab) : helpOpen.delete(tab)));
+    if (touring && spotFn) setTimeout(() => { if (touring && spotFn) { const el = spotFn(); if (el) el.classList.add("tour-spot"); } }, 0);
     document.body.dataset.tab = tab;
     document.querySelectorAll("#tabBody .rank li").forEach(li => {
       li.tabIndex = 0; li.setAttribute("role", "button");
@@ -865,7 +866,7 @@
       const res = rank(); state.selectedId = res[0].site.id;
       renderVerdictPanel(); showEarthResults(res, true); writeHash();
       $("#tabBody").scrollTop = 0;
-      Guide.say(T().byMission.backSaid(PL(state.profile)));
+      tell(T().byMission.backSaid(PL(state.profile)));
     };
     bindReverse();
     const pb = $("#placeBtn"); if (pb) pb.onclick = () => openPlace(s, t);
@@ -1069,7 +1070,7 @@
     const b = document.querySelector(`nav.tabs button[data-tab="${tab}"]`);
     if (b && state.tab !== tab) b.click();
   }
-  let resumeTour = null;
+  let resumeTour = null, spotFn = null; // spotFn: what the current step points at, re-applied after the panel redraws
   const tell = text => Guide.say(touring ? `${text} ${T().tour.resume}` : text); // during the tour, every reply points back to it
   function startTour() {
     if (touring) { resumeTour?.(); return; }
@@ -1080,11 +1081,11 @@
     const S = () => T().tour.steps;
     const tabBtn = k => document.querySelector(`nav.tabs button[data-tab="${k}"]`);
     // first the place itself (which one, what it looks like, why it was chosen), then the rest of the panel
-    const res = rank(), cur = res.find(x => x.site.id === state.selectedId) || res[0], site = cur.site, tg = target();
-    const sName = site.name.split(" – ")[0];
+    // the site shown is always the current one: the viewer may switch mission or site mid-tour
+    const now = () => { const res = rank(), cur = res.find(x => x.site.id === state.selectedId) || res[0]; return { cur, site: cur.site, sName: cur.site.name.split(" – ")[0] }; };
     const steps = [
-      { text: () => S().winner(sName, Math.round(cur.score)), el: () => $("#tabBody .winner"), tab: "verdict" },
-      { text: () => S().place(sName), el: () => null, tab: "verdict", enter: () => { if (!site.scanned) openPlace(site, tg); }, leave: () => closePlace() },
+      { text: () => { const n = now(); return S().winner(n.sName, Math.round(n.cur.score)); }, el: () => $("#tabBody .winner"), tab: "verdict" },
+      { text: () => S().place(now().sName), el: () => null, tab: "verdict", enter: () => { const n = now(); if (!n.site.scanned) openPlace(n.site, target()); }, leave: () => closePlace() },
       { text: () => S().why, el: () => $("#tabBody .mchips"), tab: "verdict" },
       { text: () => S().chart, el: () => $("#tabBody .dumb"), tab: "verdict" },
       { text: () => S().procs, el: () => { const f = $("#tabBody .fold-procs"); if (f) f.open = true; return f; }, tab: "verdict" },
@@ -1097,7 +1098,7 @@
     ];
     let i = 0;
     const end = () => {
-      prev?.leave?.(); prev = null;
+      prev?.leave?.(); prev = null; spotFn = null;
       touring = false; document.body.classList.remove("touring");
       spot(null); setGuideActions([]);
       openTab("verdict");
@@ -1109,7 +1110,11 @@
     let prev = null;
     const show = () => {
       const st = steps[i];
-      prev?.leave?.(); prev = st;
+      prev?.leave?.(); prev = st; spotFn = st.el;
+      // whatever the viewer opened in the last step closes: a compare card, a tooltip, a view of the Moon or Mars
+      ["#cmpModal", "#vizTip"].forEach(id => { const m = $(id); if (m) m.hidden = true; });
+      if (!$("#placeModal") || $("#placeModal").hidden) document.body.classList.remove("modal-open");
+      if (state.peek) unpeek(true);
       openTab(st.tab);
       st.enter?.();
       spot(st.el());
@@ -1779,7 +1784,8 @@ _Earth Analogs · NASA Space Apps 2026 · ${new Date().toISOString().slice(0, 10
   $("#homeBtn").onclick = goHome;
   $("#earthBtn").onclick = () => { state.scan = null; state.origin = null; state.targetId = null; ctl.autoRotate = false; go("earth"); showEarthMode(true); };
   document.querySelectorAll("#lang button").forEach(b => (b.onclick = () => {
-    state.lang = b.dataset.l; applyNames(); renderChrome(); renderPanel(); if (!run) guideStage(state.stage);
+    state.lang = b.dataset.l; applyNames(); renderChrome(); renderPanel();
+    if (touring) resumeTour?.(); else if (!run) guideStage(state.stage); // a tour carries on in the new language
     if (state.stage === "verdict" && state.tab !== "camp") showEarthResults(rank(), false);
   }));
 
