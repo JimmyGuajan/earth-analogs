@@ -55,6 +55,7 @@ Earth Analogs also does five more things:
 11. **Global heat map.** NASA POWER regional climatology for every 10°×10° land box, thinned to a 2.5° grid. Hotspots are the best-scoring cells more than 700 km from any catalogued analog.
 12. **Get to know the place.** Each site opens a credited Commons photo and the Wikipedia summary. A slider compares a 40 × 40 km NASA view of the Earth site (Landsat WELD, or MODIS in Antarctica) with the Moon or Mars target (LRO WAC or Viking from NASA Trek). Both are resampled into the same local projection and scale, so the lunar south pole is not distorted.
 13. **Reverse twin.** An Earth fingerprint is compared against all 9 targets with balanced weights.
+14. **Where NASA trains** (`js/nasa.js`). 12 catalogue sites that NASA or NASA-funded teams have used (Holuhraun, where the Artemis II crew trained in geology in 2024; Haughton-Mars Project; Craters of the Moon; Meteor Crater; Ries; BASALT at Kaʻū; MARTE at Río Tinto; and others) carry a NASA badge and a credited photo from the NASA Image and Video Library. The Top 10 tab shows where our ranking places each one for the chosen mission. It also lists 7 NASA field sites outside the catalogue (Black Point Lava Flow, Cinder Lake, Sierra Blanca, Kapoho) that can be measured live, and the closed habitats (HI-SEAS, NEEMO, HERA/CHAPEA), labelled as isolation analogs rather than terrain analogs.
 
 **Benefits**
 - Mission teams get a quantitative, explainable reason to choose a test site, and they know what it *cannot* test.
@@ -66,6 +67,7 @@ Earth Analogs also does five more things:
 - *Arcadia Planitia ice (ISRU):* the **Changtang Plateau (Tibet)** ranks #1, with 52 kPa pressure, permafrost and an arid climate.
 - *Lunar south pole (polar light):* **McMurdo Dry Valleys** and the untapped **Miller Range blue-ice fields** come out on top. A 3-site campaign (McMurdo + Dome C + Aorounga) covers 96%.
 - *Jezero (astrobiology):* the untapped Saharan sites **Gilf Kebir** and **Aorounga** stand out, together with Licancabur.
+- *Checked against NASA's own choices:* for the lunar south pole (polar light and power) our #1 is the **McMurdo Dry Valleys**, and for Meridiani Planum (astrobiology) it is **Salar de Pajonales**. NASA-funded teams already work at both. Where our #1 is not a NASA site, the app names it as an untapped analog.
 - *Validation:* without being told, the reverse twin pairs **Atacama with Meridiani Planum**, a pairing the literature already uses for sulfates and perchlorates. **Haughton Crater** comes out as a polar and impact analog.
 - *Ecuador as an accessible node:* the Galápagos shields **Sierra Negra (#5)** and **Fernandina (#6)** rank in the global top 10 for the lunar lava-tube pit, and Fernandina is the #2 untapped cave analog for the Moon and Mars. **Arenal del Chimborazo** (4,300 m, 3 h from Quito) is #7 for habitat construction at Gale Crater; measured surface temperature rules it out as an ice analog.
 - *Processes at work today:* the Galápagos shields (Sierra Negra, Fernandina) and Kīlauea build lava flows and tubes now, the process that shaped the Mare Tranquillitatis pit and the Arsia Mons caves billions and hundreds of millions of years ago. The Qaidam Basin floods and dries today, a live version of the lake and evaporite record at Jezero, Gale and Meridiani. Living glaciers (Miller Range, McMurdo, Changtang) are the active counterpart of Deuteronilus Mensae's buried glaciers.
@@ -91,6 +93,7 @@ Analog selection becomes a recommender problem with measured, comparable fingerp
 - MODIS Terra MOD11A2 land-surface temperature (2023) through Microsoft Planetary Computer
 - NASA GIBS (Blue Marble): https://gibs.earthdata.nasa.gov
 - NASA Moon Trek and Mars Trek (LRO WAC mosaic, Viking MDIM 2.1): https://trek.nasa.gov
+- NASA Image and Video Library (credited training photos) and NASA's planetary-analogs overview: https://images.nasa.gov, https://science.nasa.gov/solar-system/planetary-analogs/
 - Mission measurements cited: MRO SHARAD, MSL REMS and RAD, Mars 2020 MEDA, LADEE, LCROSS, LRO CRaTER, LRO Mini-RF
 
 ## Other space agency / open data

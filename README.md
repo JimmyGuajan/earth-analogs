@@ -46,10 +46,11 @@ The interface is available in Spanish and English, including the site names, not
 | **Untapped analog finder** | Opportunity = similarity × (1 − current analog usage). It surfaces places nobody has used yet. |
 | **Analog Campaign Builder** | A greedy set-cover picks 3 complementary sites that cover 90–96% of the target, against about 60–70% for the best single site. |
 | **🪨 Measured terrain** | Five terrain axes are no longer literature guesses (`pipeline/geology.py`): **ground ice** from MODIS land-surface temperature (12 monthly composites) plus ESA WorldCover glaciers; **loose regolith** from JAXA ALOS PALSAR L-band radar (fine loose material is smooth at 24 cm and looks dark, the same physics as LRO Mini-RF on the Moon); **basalt, salts and lake/river sediments** from Macrostrat geologic maps sampled at 9 points, plus JRC Global Surface Water (1984–2021) for water history. All raster statistics are computed server-side by Microsoft Planetary Computer. |
-| **Live scan** | Click anywhere and the app queries NASA POWER, the DEM, MODIS, ALOS PALSAR, ESA WorldCover, JRC Global Surface Water and Macrostrat in the browser and fingerprints the point in seconds (up to 13 of 15 axes measured live). |
+| **Live scan** | Click anywhere and the app queries NASA POWER, the DEM, MODIS, ALOS PALSAR, ESA WorldCover, JRC Global Surface Water and Macrostrat in the browser and fingerprints the point in about 20–30 s (up to 13 of 15 axes measured live). |
 | **🔥 Global heat map** | The whole land surface is scored on a 2.5° grid of NASA POWER climatology (`pipeline/global_grid.py`). Bright = alike. The app lists the most promising **uncatalogued zones**: the best cells more than 700 km from any known analog, which are candidates for *new* analogs. |
 | **🌿 Measured vegetation** | The "no vegetation" axis comes from MODIS Terra MOD13Q1 NDVI (250 m, ORNL DAAC web service) for every site and every live scan (`pipeline/ndvi.py`). |
 | **📷 Get to know the place** | A "Get to know the place" window for every site. It shows a Wikimedia Commons photo with author and licence, and the Wikipedia summary (Spanish or English). Below them is a **same-scale slider**: a 40 × 40 km Landsat view of the Earth site against the LRO WAC or Viking view of the target, both in the same local projection with one scale bar (`pipeline/site_views.py`, `pipeline/wiki.py`). |
+| **Where NASA trains** | 12 catalogue sites NASA or NASA-funded teams already use (Holuhraun, where the Artemis II crew trained in 2024; Haughton; Craters of the Moon; Meteor Crater; Ries…) get a NASA badge and a credited NASA photo. The Top 10 tab shows how our ranking places them for your mission, plus 7 NASA field sites outside the catalogue that you can measure live (`js/nasa.js`). |
 | **🔄 Reverse twin** | Start from Earth: tap any place (or a catalog site) and the app tells you which Moon or Mars site it most resembles, then flies the globe there. |
 
 ## Key findings
@@ -146,6 +147,7 @@ docs/SUBMISSION.md       Space Apps project text and 30-s video script
 - Through **Microsoft Planetary Computer**: **MODIS Terra MOD11A2** land-surface temperature 2023 (NASA), **ALOS PALSAR** annual L-band mosaic 2020 (JAXA), **ESA WorldCover** 2021, **JRC Global Surface Water** 1984–2021
 - **Macrostrat** geologic map units (CC-BY 4.0)
 - **NASA EPIC** (DSCOVR) natural-colour Earth images, **wheretheiss.at** for the live ISS position
+- **NASA Image and Video Library** for the credited photos of NASA analog training
 - Mission measurements: MSL REMS and RAD, Mars 2020 MEDA, LADEE, LCROSS, CRaTER
 
 ## Honest limitations

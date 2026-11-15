@@ -64,6 +64,7 @@
       }
       shown += s;
       el.textContent = shown;
+      const live = document.getElementById("guideLive"); if (live) live.textContent = shown;
       if (speaking) await speaking;
     }
     if (my === token) box.classList.remove("talking");

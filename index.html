@@ -10,10 +10,10 @@
   <script>document.documentElement.classList.add("js");</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=20261115183231">
+  <link rel="stylesheet" href="css/styles.css?v=20261115185539">
 </head>
 <body data-stage="intro">
-  <div id="globe" aria-label="3D globe"></div>
+  <div id="globe" role="img" aria-label="Globo 3D" data-i-aria="globeLabel"></div>
   <div class="stars" aria-hidden="true"></div>
   <div class="warp" id="warp" aria-hidden="true"></div>
   <!-- the view from inside the ship: a window frame around the globe -->
@@ -63,10 +63,11 @@
       <button class="cta cue" id="startBtn"><span data-i="start">Comenzar misión</span></button>
       <button class="cta-alt" id="earthBtn"><span data-i="earthStart">o empieza desde la Tierra</span></button>
     </div>
+    <button class="demo-link" id="demoBtn"><span data-i="demo">Ver un resultado ya: el gemelo terrestre de Shackleton</span></button>
   </section>
 
   <!-- MAIN PANEL (steps) -->
-  <aside class="panel" id="panel" aria-live="polite"></aside>
+  <aside class="panel" id="panel"></aside>
 
   <!-- mission control -->
   <div class="terminal" id="terminal" hidden>
@@ -115,10 +116,11 @@
         <path class="glint" d="M26 24c2-3.5 5.5-5.5 9.5-5.8"/>
       </svg>
     </button>
-    <div class="guide-bubble" id="guideBubble" role="status" aria-live="polite">
+    <div class="guide-bubble" id="guideBubble">
       <b class="guide-name" data-i="guideName">Comandante Vega</b>
-      <p id="guideText"></p>
-      <button class="btn guide-act" id="guideSound" hidden>Activar sonido y voz</button>
+      <p id="guideText" aria-hidden="true"></p>
+      <p id="guideLive" class="sr-only" aria-live="polite"></p>
+      <button class="btn ghost guide-act" id="guideSound" hidden>Activar sonido y voz</button>
       <div class="guide-actions" id="guideActions" hidden></div>
       <button class="guide-x" id="guideX" aria-label="Ocultar"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
@@ -128,17 +130,18 @@
   <div class="hint" id="hint" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/globe.gl@2.32.4/dist/globe.gl.min.js"></script>
-  <script src="js/data.js?v=20261115183231"></script>
-  <script src="js/grid.js?v=20261115183231"></script>
-  <script src="js/wiki.js?v=20261115183231"></script>
-  <script src="js/engine.js?v=20261115183231"></script>
-  <script src="js/i18n.js?v=20261115183231"></script>
-  <script src="js/i18n-data.js?v=20261115183231"></script>
-  <script src="js/processes.js?v=20261115183231"></script>
-  <script src="js/astro.js?v=20261115183231"></script>
-  <script src="js/guide.js?v=20261115183231"></script>
-  <script src="js/sound.js?v=20261115183231"></script>
-  <script src="js/patch.js?v=20261115183231"></script>
-  <script src="js/app.js?v=20261115183231"></script>
+  <script src="js/data.js?v=20261115185539"></script>
+  <script src="js/grid.js?v=20261115185539"></script>
+  <script src="js/wiki.js?v=20261115185539"></script>
+  <script src="js/engine.js?v=20261115185539"></script>
+  <script src="js/i18n.js?v=20261115185539"></script>
+  <script src="js/i18n-data.js?v=20261115185539"></script>
+  <script src="js/processes.js?v=20261115185539"></script>
+  <script src="js/astro.js?v=20261115185539"></script>
+  <script src="js/guide.js?v=20261115185539"></script>
+  <script src="js/sound.js?v=20261115185539"></script>
+  <script src="js/patch.js?v=20261115185539"></script>
+  <script src="js/nasa.js?v=20261115185539"></script>
+  <script src="js/app.js?v=20261115185539"></script>
 </body>
 </html>

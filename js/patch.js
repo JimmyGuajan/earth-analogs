@@ -6,9 +6,9 @@
     bg: tok("--bg"), surface: tok("--surface"), surface2: tok("--surface-2"), line: tok("--line-strong"),
     text: tok("--text"), muted: tok("--muted"), star: tok("--star"),
     earth: tok("--earth"), accent: tok("--accent"), target: tok("--target"), bad: tok("--bad"), hull: tok("--hull"),
+    dest: tok("--dest") || tok("--target"),
   });
-  const FONT = '"Space Grotesk", "Segoe UI", system-ui, sans-serif';
-  const MONO = '"JetBrains Mono", Consolas, monospace';
+  const FONT = tok("--display"), BODY = tok("--font"), MONO = tok("--mono");
 
   // deterministic pseudo-random from a string, so a crew member's patch is stable
   function seeded(str) {
@@ -49,7 +49,7 @@
     ctx.save();
     // outer band
     ctx.fillStyle = c.surface; ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
-    ctx.lineWidth = R * 0.03; ctx.strokeStyle = c.target; ctx.stroke();
+    ctx.lineWidth = R * 0.03; ctx.strokeStyle = c.dest; ctx.stroke();
     ctx.lineWidth = R * 0.012; ctx.strokeStyle = c.line;
     ctx.beginPath(); ctx.arc(cx, cy, R * 0.72, 0, Math.PI * 2); ctx.stroke();
     // band text
@@ -102,7 +102,7 @@
   }
 
   /** a 1600 x 1000 PNG certificate; rows: [[label, value], ...] */
-  async function certificate({ title, name, role, patch, rows, statement, footer }) {
+  async function certificate({ title, name, role, patch, rows, statement, footer, result }) {
     try { await Promise.all([document.fonts.load(`700 40px "Space Grotesk"`), document.fonts.load(`500 20px "JetBrains Mono"`), document.fonts.load(`400 20px "Inter"`)]); } catch { /* fonts optional */ }
     const c = C(), W = 1600, H = 1000;
     const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
@@ -112,28 +112,37 @@
     ctx.fillStyle = c.star;
     for (let i = 0; i < 160; i++) { ctx.globalAlpha = 0.15 + rnd() * 0.5; ctx.fillRect(rnd() * W, rnd() * H, 2, 2); }
     ctx.globalAlpha = 1;
-    ctx.strokeStyle = c.line; ctx.lineWidth = 2; ctx.strokeRect(36, 36, W - 72, H - 72);
-    ctx.strokeStyle = c.target; ctx.lineWidth = 4; ctx.strokeRect(48, 48, W - 96, H - 96);
+    ctx.strokeStyle = c.line; ctx.lineWidth = 2; ctx.strokeRect(40, 40, W - 80, H - 80);
     drawPatch(ctx, 340, 480, 230, patch);
     const x = 650;
     ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
     ctx.fillStyle = c.target; ctx.font = `700 34px ${FONT}`; ctx.fillText(title, x, 170);
-    ctx.fillStyle = c.text; ctx.font = `700 76px ${FONT}`; ctx.fillText(name, x, 262, W - x - 100);
-    ctx.fillStyle = c.muted; ctx.font = `400 30px Inter, ${FONT}`; ctx.fillText(role, x, 310);
-    ctx.fillStyle = c.text; ctx.font = `400 26px Inter, ${FONT}`;
+    ctx.fillStyle = c.text; fit(ctx, name, 700, 76, FONT, W - x - 100); ctx.fillText(name, x, 262);
+    ctx.fillStyle = c.muted; ctx.font = `400 30px ${BODY}`; ctx.fillText(role, x, 310);
+    ctx.fillStyle = c.text; ctx.font = `400 26px ${BODY}`;
     wrap(ctx, statement, x, 372, W - x - 110, 36).forEach((l, i) => ctx.fillText(l, x, 372 + i * 36));
     let y = 504;
+    if (result) {
+      const ls = wrap(ctx, statement, x, 372, W - x - 110).length;
+      y = 372 + ls * 36 + 40;
+      ctx.fillStyle = c.dest; fit(ctx, result, 700, 40, FONT, W - x - 110); ctx.fillText(result, x, y);
+      y += 64;
+    }
     rows.forEach(([k, v]) => {
-      ctx.fillStyle = c.muted; ctx.font = `400 22px Inter, ${FONT}`; ctx.fillText(k, x, y);
-      ctx.fillStyle = c.text; ctx.font = `600 28px ${FONT}`; ctx.fillText(v, x + 260, y, W - x - 380);
+      ctx.fillStyle = c.muted; ctx.font = `400 22px ${BODY}`; ctx.fillText(k, x, y);
+      ctx.fillStyle = c.text; fit(ctx, v, 600, 28, FONT, W - x - 380); ctx.fillText(v, x + 260, y);
       ctx.strokeStyle = c.line; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, y + 18); ctx.lineTo(W - 110, y + 18); ctx.stroke();
       y += 52;
     });
-    ctx.fillStyle = c.muted; ctx.font = `400 19px Inter, ${FONT}`;
+    ctx.fillStyle = c.muted; ctx.font = `400 19px ${BODY}`;
     footer.forEach((l, i) => ctx.fillText(l, 110, H - 120 + i * 30, W - 220));
     return new Promise(res => cv.toBlob(res, "image/png"));
   }
 
+  function fit(ctx, text, weight, size, family, max) {
+    let px = size;
+    do { ctx.font = `${weight} ${px}px ${family}`; px -= 2; } while (ctx.measureText(text).width > max && px > size * 0.5);
+  }
   function wrap(ctx, text, x, y, max) {
     const out = []; let line = "";
     for (const w of text.split(" ")) {

@@ -73,7 +73,7 @@ window.I18N_DATA = {
       gilf_kebir: "Gilf Kebir – Desierto Occidental", changtang: "Meseta de Changtang", miller_range: "Campos de hielo azul de la cordillera Miller",
       tenoumer: "Cráter Tenoumer", aorounga: "Estructura de impacto de Aorounga", wolfe_creek: "Cráter Wolfe Creek",
       payun_matru: "Campo volcánico Payún Matrú", harrat_khaybar: "Harrat Khaybar y tubo de lava de Umm Jirsan", undara: "Tubos de lava de Undara",
-      moon_shackleton: "Cresta Shackleton – de Gerlache (polo sur, Artemis)", moon_malapert: "Macizo Malapert (candidato de Artemis III)",
+      moon_shackleton: "Cresta Shackleton – de Gerlache (polo sur, Artemis)", moon_malapert: "Macizo Malapert (región candidata de Artemis)",
       moon_tranquillitatis_pit: "Pozo del Mare Tranquillitatis (cueva confirmada por radar)", mars_jezero: "Cráter Jezero (Perseverance)",
       mars_gale: "Cráter Gale – monte Sharp (Curiosity)", mars_arcadia: "Arcadia Planitia (hielo para una base humana)",
       mars_deuteronilus: "Deuteronilus Mensae (glaciares cubiertos de escombros)", mars_arsia_caves: "Tragaluces de Arsia Mons (cuevas en tubos de lava)",
