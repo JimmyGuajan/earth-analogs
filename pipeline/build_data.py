@@ -174,6 +174,28 @@ def merge_ndvi(sites):
             s["barren"] = round(min(max((0.5 - ndvi) / 0.4, 0), 1), 3)
 
 
+GEO_KIND = {"basalt": "mapped", "salts": "mapped", "sediment": "mapped", "ice": "measured", "regolith": "measured"}
+
+
+def merge_geology(sites):
+    """Measured terrain axes (Macrostrat maps, MODIS LST, ESA WorldCover, JRC GSW, ALOS PALSAR;
+    see pipeline/geology.py) replace the curated estimates. Axes with no data keep the literature value."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from geology import geo_axes
+    path = DATA / "geology_cache.json"
+    cache = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    for s in sites:
+        g = cache.get(f"{s['lat']},{s['lon']}")
+        if not g:
+            continue
+        s["geo"] = g
+        s["geo_kind"] = {}
+        for k, v in geo_axes(g, s.get("relief_m")).items():
+            s[f"{k}_curated"] = s.get(k)
+            s[k] = v
+            s["geo_kind"][k] = GEO_KIND[k]
+
+
 def main():
     refresh = "--refresh" in sys.argv
     sites = json.loads((DATA / "earth_sites.json").read_text(encoding="utf-8"))["sites"]
@@ -200,6 +222,7 @@ def main():
         s["elev"] = elev[f"{s['lat']},{s['lon']}"]
     earth_relief(sites)
     merge_ndvi(sites)
+    merge_geology(sites)
     merge_planetary(targets)
 
     payload = {

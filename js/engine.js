@@ -14,15 +14,15 @@
     { key: "thin_air",  label: "Thin atmosphere",        group: "climate", src: "NASA POWER · PS (elevation-corrected)" },
     { key: "radiation", label: "Solar / UV exposure",    group: "climate", src: "NASA POWER · ALLSKY_SFC_SW_DWN, UV_INDEX" },
     { key: "light",     label: "Light extremes",         group: "climate", src: "NASA POWER · monthly SW min/max" },
-    { key: "basalt",    label: "Basaltic / volcanic",    group: "terrain", src: "Curated geology" },
-    { key: "regolith",  label: "Loose regolith / fines", group: "terrain", src: "Curated geology" },
-    { key: "ice",       label: "Ground ice / permafrost",group: "terrain", src: "Curated geology" },
-    { key: "impact",    label: "Impact structure",       group: "terrain", src: "Curated geology" },
-    { key: "caves",     label: "Caves / lava tubes",     group: "terrain", src: "Curated geology" },
-    { key: "salts",     label: "Salts & evaporites",     group: "terrain", src: "Curated geology" },
-    { key: "sediment",  label: "Lake / river sediments", group: "terrain", src: "Curated geology" },
-    { key: "barren",    label: "No vegetation",          group: "terrain", src: "Curated geology" },
-    { key: "relief",    label: "Rugged relief",          group: "terrain", src: "Curated geology" },
+    { key: "basalt",    label: "Basaltic / volcanic",    group: "terrain", src: "Macrostrat geologic maps" },
+    { key: "regolith",  label: "Loose regolith / fines", group: "terrain", src: "ALOS PALSAR L-band HV (JAXA)" },
+    { key: "ice",       label: "Ground ice / permafrost",group: "terrain", src: "MODIS LST + ESA WorldCover" },
+    { key: "impact",    label: "Impact structure",       group: "terrain", src: "Impact crater literature" },
+    { key: "caves",     label: "Caves / lava tubes",     group: "terrain", src: "Cave survey literature" },
+    { key: "salts",     label: "Salts & evaporites",     group: "terrain", src: "Macrostrat geologic maps" },
+    { key: "sediment",  label: "Lake / river sediments", group: "terrain", src: "Macrostrat + JRC Global Surface Water" },
+    { key: "barren",    label: "No vegetation",          group: "terrain", src: "MODIS MOD13Q1 NDVI" },
+    { key: "relief",    label: "Rugged relief",          group: "terrain", src: "Copernicus DEM (P95-P5, 15 km)" },
   ];
   const KEYS = FEATURES.map(f => f.key);
   const CLIMATE_KEYS = FEATURES.filter(f => f.group === "climate").map(f => f.key);
@@ -135,5 +135,22 @@
     return { chosen, coverage: 100 * KEYS.reduce((a, k2) => a + (weights[k2] ?? 1) * best[k2], 0) / total, owner };
   }
 
-  global.TW = { FEATURES, KEYS, CLIMATE_KEYS, PROFILES, profileWeights, climateFromPower, fingerprint, compare, buildCampaign, clamp };
+  /* Raw terrain measurements -> 0..1 axes. Mirrors geo_axes() in pipeline/geology.py
+   * so catalog sites and live scans are scored the same way. */
+  function geoAxes(g, reliefM = null) {
+    const out = {};
+    const m = g.macrostrat, w = g.gsw, t = g.lst, wc = g.worldcover, p = g.palsar;
+    ["basalt", "salts", "sediment"].forEach(k => { if (m?.[k] != null) out[k] = m[k]; });
+    if (w && out.sediment != null) out.sediment = Math.max(out.sediment, clamp(w.ever_wet * 4));
+    if (t) {
+      let ice = clamp((2 - t.lst_mean_c) / 8);
+      if (wc) ice = Math.max(ice, clamp(wc.snow_ice * 2));
+      out.ice = ice;
+    }
+    // radar only on bare, non-mountainous ground: slopes and plants also look bright at L-band
+    if (p && wc && wc.bare >= 0.5 && (reliefM == null || reliefM < 1000)) out.regolith = clamp((-18 - p.hv_db) / 10);
+    return out;
+  }
+
+  global.TW = { FEATURES, KEYS, CLIMATE_KEYS, PROFILES, profileWeights, climateFromPower, fingerprint, compare, buildCampaign, clamp, geoAxes };
 })(window);

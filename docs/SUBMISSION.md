@@ -13,6 +13,7 @@ Earth Analogs measures every place on the same 15 axes using open NASA data:
 - **Relief:** LRO LOLA, MGS MOLA and the Copernicus DEM, measured with the same metric on three worlds.
 - **Ice:** LRO Diviner and the Mars Odyssey neutron map.
 - **Light:** an orbital insolation model.
+- **Terrain on Earth:** MODIS land-surface temperature (ground ice), JAXA ALOS PALSAR radar (loose regolith), ESA WorldCover, JRC Global Surface Water and Macrostrat geologic maps (basalt, salts, sediments).
 
 A guided 3D experience lets a planner pick a Moon or Mars base site and a mission goal, then "launch". A mission computer runs the analysis, a ship flies to Earth, and it lands on the best twin with an explained verdict: why the site was chosen and what it cannot simulate.
 
@@ -20,7 +21,7 @@ Earth Analogs also does five more things:
 - It paints a **global heat map** of the whole land surface and lists the most promising **uncatalogued zones**.
 - It surfaces **untapped analogs** nobody uses yet.
 - It builds **3-site campaigns** that cover 90–96% of a target.
-- It **fingerprints any clicked point on Earth live**, including MODIS vegetation.
+- It **fingerprints any clicked point on Earth live**: up to 13 of 15 axes, including vegetation, ground ice, radar regolith and lithology.
 - Its **reverse twin** mode tells you which Moon or Mars site any Earth place resembles.
 
 ## Links
@@ -43,15 +44,16 @@ Earth Analogs also does five more things:
    - **Martian ice:** the Mars Odyssey neutron epithermal map, combined with SHARAD radar results for buried glaciers.
    - **Seasonal light:** an orbital insolation model built from NASA Planetary Fact Sheet elements, using the same formula as Earth.
    - **Saturating axes** (vacuum or 0.6 kPa, -60 °C, radiation) use rover and orbiter measurements (REMS, MEDA, RAD, LADEE, CRaTER) and are clipped to Earth's extreme.
-3. **Provenance.** Every axis is labeled *measured*, *mission* or *literature* in an Evidence tab.
+3. **Provenance.** Every axis is labeled *measured*, *geologic map*, *mission* or *literature* in an Evidence tab.
 4. **Similarity.** The score is 100 × (1 − weighted RMS distance), with weights set by the mission profile.
 5. **Untapped analogs.** The opportunity score is similarity × (1 − 0.75 × current usage).
 6. **Campaign builder.** A greedy weighted max-coverage pass picks 3 complementary sites. The coverage gap shows what Earth cannot reproduce.
-7. **Live scan.** The browser calls NASA POWER (CORS-enabled), the DEM and the ORNL DAAC MODIS service for any clicked point.
+7. **Live scan.** For any clicked point, the browser calls NASA POWER, the DEM, the ORNL DAAC MODIS service, the Microsoft Planetary Computer data API and Macrostrat (all CORS-enabled, no key).
 8. **Vegetation.** MODIS Terra MOD13Q1 NDVI (250 m), averaged over four 2023 seasonal composites in a 4 km window, replaces the literature value of the "no vegetation" axis.
-9. **Global heat map.** NASA POWER regional climatology for every 10°×10° land box, thinned to a 2.5° grid. Hotspots are the best-scoring cells more than 700 km from any catalogued analog.
-10. **Get to know the place.** Each site opens a credited Commons photo and the Wikipedia summary. A slider compares a 40 × 40 km NASA view of the Earth site (Landsat WELD, or MODIS in Antarctica) with the Moon or Mars target (LRO WAC or Viking from NASA Trek). Both are resampled into the same local projection and scale, so the lunar south pole is not distorted.
-11. **Reverse twin.** An Earth fingerprint is compared against all 9 targets with balanced weights.
+9. **Measured terrain** (`pipeline/geology.py`, 15 km window like relief). Ground ice is the mean land-surface temperature of 12 monthly MODIS Terra MOD11A2 composites (2023) plus ESA WorldCover permanent snow and ice. Loose regolith is the JAXA ALOS PALSAR L-band HV backscatter (2020 mosaic): fine, loose material is smooth at 24 cm and looks dark, the same physics LRO Mini-RF uses on the Moon. It is applied only on bare, non-mountainous ground. Basalt, salts and lake/river sediments come from Macrostrat geologic map units sampled at 9 points, using each map scale only for what it can resolve, plus JRC Global Surface Water (1984–2021). The Planetary Computer computes all raster statistics server-side, so the pipeline needs no GIS libraries.
+10. **Global heat map.** NASA POWER regional climatology for every 10°×10° land box, thinned to a 2.5° grid. Hotspots are the best-scoring cells more than 700 km from any catalogued analog.
+11. **Get to know the place.** Each site opens a credited Commons photo and the Wikipedia summary. A slider compares a 40 × 40 km NASA view of the Earth site (Landsat WELD, or MODIS in Antarctica) with the Moon or Mars target (LRO WAC or Viking from NASA Trek). Both are resampled into the same local projection and scale, so the lunar south pole is not distorted.
+12. **Reverse twin.** An Earth fingerprint is compared against all 9 targets with balanced weights.
 
 **Benefits**
 - Mission teams get a quantitative, explainable reason to choose a test site, and they know what it *cannot* test.
@@ -59,12 +61,13 @@ Earth Analogs also does five more things:
 - It is open and reproducible. It runs from static files, needs no API key, and the pipeline rebuilds everything from public archives.
 
 **Findings from the current dataset**
-- *Lunar lava-tube base (Mare Tranquillitatis pit, caves profile):* **Harrat Khaybar and the Umm Jirsan lava tube (Saudi Arabia)** score 72/100. It is a hyperarid basaltic field almost never used as a space analog.
+- *Lunar lava-tube base (Mare Tranquillitatis pit, caves profile):* **Harrat Khaybar and the Umm Jirsan lava tube (Saudi Arabia)** score 64/100. It is a hyperarid basaltic field almost never used as a space analog.
 - *Arcadia Planitia ice (ISRU):* the **Changtang Plateau (Tibet)** ranks #1, with 52 kPa pressure, permafrost and an arid climate.
 - *Lunar south pole (polar light):* **McMurdo Dry Valleys** and the untapped **Miller Range blue-ice fields** come out on top. A 3-site campaign (McMurdo + Dome C + Aorounga) covers 96%.
 - *Jezero (astrobiology):* the untapped Saharan sites **Gilf Kebir** and **Aorounga** stand out, together with Licancabur.
 - *Validation:* without being told, the reverse twin pairs **Atacama with Meridiani Planum**, a pairing the literature already uses for sulfates and perchlorates. **Haughton Crater** comes out as a polar and impact analog.
-- *Ecuador as an accessible node:* the Galápagos shields **Sierra Negra (#8)** and **Fernandina (#9)** rank in the global top 10 for lunar and Martian lava-tube caves. **Arenal del Chimborazo** (4,300 m, 1,549 m of measured relief, glacier ice, 3 h from Quito) is the #3 untapped analog for Arcadia ice.
+- *Ecuador as an accessible node:* the Galápagos shields **Sierra Negra (#5)** and **Fernandina (#6)** rank in the global top 10 for the lunar lava-tube pit, and Fernandina is the #2 untapped cave analog for the Moon and Mars. **Arenal del Chimborazo** (4,300 m, 3 h from Quito) is #7 for habitat construction at Gale Crater; measured surface temperature rules it out as an ice analog.
+- *Robustness:* when five terrain axes switched from literature estimates to measurements, the findings above kept their places.
 
 **Tools**
 HTML/CSS/JavaScript, globe.gl (Three.js), Chart.js, Python 3 + NumPy + Pillow.
@@ -73,7 +76,8 @@ HTML/CSS/JavaScript, globe.gl (Three.js), Chart.js, Python 3 + NumPy + Pillow.
 Analog selection becomes a recommender problem with measured, comparable fingerprints across three worlds. The question changes from "which famous site?" to "which combination of sites covers this mission, and what is left?". The result is told as a mission story: launch, travel, landing and verdict.
 
 **Limitations**
-- Seven terrain axes are still literature-based estimates (v0.1), and the app labels them that way. The next step is GLiM lithology, permafrost zonation and the Earth Impact Database.
+- Impact structures and caves are still literature-based, because they cannot be detected globally from orbit. Outside the USA, Macrostrat maps are mostly continental-scale, so salts and sediments keep literature values there. The next step is the Earth Impact Database and finer lithology maps.
+- Surface temperature indicates permafrost but does not prove ground ice; radar smoothness also rates salt flats as loose regolith.
 - Odyssey neutrons see only the top ~1 m at coarse resolution.
 - NASA POWER's grid is about 0.5°.
 - Scores support decisions. They do not certify sites.
@@ -82,12 +86,15 @@ Analog selection becomes a recommender problem with measured, comparable fingerp
 - NASA POWER Climatology API (2001–2025): https://power.larc.nasa.gov
 - LRO LOLA LDEM_16; MGS MOLA MEGDR; LRO Diviner Polar Resource Product; Mars Odyssey GRS/NS epithermal map, all from the PDS Geosciences Node: https://pds-geosciences.wustl.edu
 - MODIS Terra MOD13Q1 NDVI through the ORNL DAAC MODIS Web Service: https://modis.ornl.gov/data/modis_webservice.html
+- MODIS Terra MOD11A2 land-surface temperature (2023) through Microsoft Planetary Computer
 - NASA GIBS (Blue Marble): https://gibs.earthdata.nasa.gov
 - NASA Moon Trek and Mars Trek (LRO WAC mosaic, Viking MDIM 2.1): https://trek.nasa.gov
 - Mission measurements cited: MRO SHARAD, MSL REMS and RAD, Mars 2020 MEDA, LADEE, LCROSS, LRO CRaTER, LRO Mini-RF
 
 ## Other space agency / open data
 - Copernicus GLO-90 DEM (ESA) through the Open-Meteo elevation API
+- ALOS PALSAR annual mosaic (JAXA), ESA WorldCover 2021 and JRC Global Surface Water, through Microsoft Planetary Computer (a Space Apps global offer): https://planetarycomputer.microsoft.com
+- Macrostrat geologic map units (CC-BY 4.0): https://macrostrat.org
 - Chandrayaan-1 M3 (ISRO) and Kaguya (JAXA), cited in the target evidence
 
 ## Use of AI

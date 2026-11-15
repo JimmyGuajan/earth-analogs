@@ -5,18 +5,40 @@
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const ICON = { aridity: "🏜️", cold: "🥶", swing: "🌡️", thin_air: "🏔️", radiation: "☀️", light: "🌗", basalt: "🌋", regolith: "🪨", ice: "🧊",
-    impact: "☄️", caves: "🕳️", salts: "🧂", sediment: "🏞️", barren: "🚫", relief: "⛰️" };
-  const PROFILE_ICON = { balanced: "⚖️", habitat: "🏗️", isru: "🧊", mobility: "🛞", astrobio: "🧬", caves: "🕳️", power: "☀️" };
+  // one stroke icon per mission profile (no emoji as icons)
+  const PROFILE_SVG = {
+    balanced: '<path d="M12 4v16M7 20h10M4 8h16"/><path d="M6 8l-3 6h6zM18 8l-3 6h6z"/>',
+    habitat: '<path d="M3 19h18"/><path d="M5 19v-5a7 7 0 0 1 14 0v5"/><path d="M10 19v-4h4v4"/>',
+    isru: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5"/>',
+    mobility: '<rect x="4" y="8" width="16" height="6" rx="1.5"/><circle cx="7.5" cy="17" r="2"/><circle cx="16.5" cy="17" r="2"/><path d="M12 8V5h4"/>',
+    astrobio: '<circle cx="12" cy="12" r="8"/><circle cx="10" cy="10" r="2"/><circle cx="15" cy="14.5" r="1.3"/>',
+    caves: '<path d="M3 20c1-8 4-13 9-13s8 5 9 13"/><path d="M8 20c.5-4 2-7 4-7s3.5 3 4 7"/>',
+    power: '<circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/>',
+  };
+  const icon = id => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${PROFILE_SVG[id]}</svg>`;
+  const CODE_T = { moon_shackleton: "SHK", moon_malapert: "MLP", moon_tranquillitatis_pit: "TRQ", mars_jezero: "JEZ", mars_gale: "GAL",
+    mars_arcadia: "ARC", mars_deuteronilus: "DTN", mars_arsia_caves: "ARS", mars_meridiani: "MER" };
+  const CODE_P = { balanced: "GEN", habitat: "HAB", isru: "ISR", mobility: "MOV", astrobio: "BIO", caves: "CAV", power: "POL" };
+  // per-viewer conveniences only (crew name, flight count); the page works without them
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem("ea." + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem("ea." + k, JSON.stringify(v)); } catch { /* private mode */ } },
+  };
   const TEX = { Earth: "assets/earth.jpg", Moon: "assets/moon.jpg", Mars: "assets/mars.jpg" };
   const POWER_PARAMS = "T2M,T2M_RANGE,T2M_MIN,T2M_MAX,PRECTOTCORR,RH2M,PS,ALLSKY_SFC_SW_DWN,ALLSKY_SFC_UV_INDEX";
   const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  const LST_YEAR = 2023;
+  const GEO_KIND = { basalt: "mapped", salts: "mapped", sediment: "mapped", ice: "measured", regolith: "measured" };
 
   const state = {
     lang: (navigator.language || "es").startsWith("es") ? "es" : "en",
     stage: "intro", body: "Moon", targetId: null, profile: null,
     mode: "match", tab: "verdict", selectedId: null, scan: null, scanBusy: false,
+    crew: Object.assign({ name: "", role: "cmd" }, store.get("crew", {})), code: null,
   };
+  const crewName = () => state.crew.name.trim() || T().crew.anon;
+  const roleLabel = () => (T().crew.roles[state.crew.role] || T().crew.roles.cmd)[0];
+  const missionCode = () => `EA-${CODE_T[state.targetId] || "XXX"}-${CODE_P[state.profile] || "GEN"}-${String(store.get("flights", 0) + 1).padStart(2, "0")}`;
   CURATED.forEach(s => (s.fp = TW.fingerprint(s)));
 
   const T = () => I18N[state.lang];
@@ -124,8 +146,10 @@
     document.documentElement.lang = state.lang;
     document.querySelectorAll("[data-i]").forEach(el => (el.textContent = T()[el.dataset.i]));
     document.querySelectorAll("#lang button").forEach(b => b.classList.toggle("on", b.dataset.l === state.lang));
-    const idx = { intro: -1, earth: -1, dest: 0, mission: 1, launch: 2, verdict: 3 }[state.stage];
-    $("#progress").innerHTML = T().steps.map((s, i) => `<li class="${i === idx ? "on" : i < idx ? "done" : ""}"><i>${i < idx ? "✓" : i + 1}</i>${s}</li>`).join("");
+    const idx = { intro: -1, earth: -1, crew: 0, dest: 1, mission: 2, brief: 2, launch: 3, verdict: 4 }[state.stage];
+    $("#soundBtn span").textContent = SFX.on ? T().soundOn : T().soundOff;
+    $("#soundBtn").setAttribute("aria-pressed", String(SFX.on));
+    $("#progress").innerHTML = T().steps.map((s, i) => `<li class="${i === idx ? "on" : i < idx ? "done" : ""}"><i>${i < idx ? "✓" : i + 1}</i><span>${s}</span></li>`).join("");
     document.body.dataset.stage = state.stage;
   }
   function go(stage) {
@@ -134,8 +158,51 @@
   }
 
   // ---------- panel per stage ----------
+  function patchOpts() { return { name: crewName(), code: state.stage === "crew" ? "EA" : state.code || missionCode(), body: state.stage === "crew" ? null : target()?.body }; }
   function renderPanel() {
     const p = $("#panel");
+    if (state.stage === "crew") {
+      const C = T().crew;
+      p.innerHTML = `<div class="p-body">
+        <h2 class="p-title">${C.title}</h2><p class="p-sub">${C.lead}</p>
+        <div class="patch-wrap"><canvas class="patch" id="patch" role="img" aria-label="${esc(C.title)}"></canvas></div>
+        <div class="field"><label for="crewName">${C.name}</label>
+          <input type="text" id="crewName" maxlength="24" autocomplete="nickname" spellcheck="false" placeholder="${esc(C.placeholder)}" value="${esc(state.crew.name)}"></div>
+        <fieldset class="field"><legend>${C.role}</legend><div class="roles">
+          ${Object.entries(C.roles).map(([id, [label, desc]]) => `<label class="role"><input type="radio" name="role" value="${id}" ${state.crew.role === id ? "checked" : ""}><span><b>${label}</b><small>${desc}</small></span></label>`).join("")}
+        </div></fieldset>
+        <p class="privacy">${C.privacy}</p>
+      </div>
+      <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button><button class="btn big" id="crewGo">${C.go}</button></div>`;
+      const paint = () => Patch.paint($("#patch"), patchOpts());
+      requestAnimationFrame(paint);
+      $("#crewName").oninput = e => { state.crew.name = e.target.value; paint(); };
+      p.querySelectorAll('input[name="role"]').forEach(r => (r.onchange = () => { state.crew.role = r.value; }));
+      $("#backBtn").onclick = goHome;
+      $("#crewGo").onclick = () => {
+        store.set("crew", state.crew);
+        SFX.go();
+        go("dest"); ctl.autoRotate = false; showTargetsOnGlobe(); globe.pointOfView({ lat: -20, lng: 20, altitude: 2.4 }, 1200);
+      };
+    }
+    if (state.stage === "brief") {
+      const t = target(), B = T().brief;
+      const facts = (state.lang === "es" && I18N_TARGET_FACTS.es[t.id]) || t.facts || [];
+      p.innerHTML = `<div class="p-body brief">
+        <p class="brief-code">${state.code}</p>
+        <div class="brief-head"><canvas class="patch" id="patch" role="img" aria-label="${esc(state.code)}"></canvas>
+          <div><h2 class="p-title">${B.title}</h2><p class="p-sub">${esc(B.hello(crewName(), roleLabel()))}</p></div></div>
+        <div class="sec">${B.why}: ${esc(short(t.name))}</div>
+        <ul class="facts">${facts.map(f => `<li>${esc(f)}</li>`).join("")}</ul>
+        <div class="sec">${B.rehearse}</div>
+        <p>${I18N_PROFILE_WHY[state.lang][state.profile]}</p>
+        <p class="objective">${B.objective(PL(state.profile), esc(short(t.name)))}</p>
+      </div>
+      <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button><button class="btn big" id="acceptBtn">${B.accept}</button></div>`;
+      requestAnimationFrame(() => Patch.paint($("#patch"), patchOpts()));
+      $("#backBtn").onclick = () => go("mission");
+      $("#acceptBtn").onclick = () => { store.set("flights", store.get("flights", 0) + 1); launch(); };
+    }
     if (state.stage === "dest") {
       const list = TARGETS.filter(t => t.body === state.body);
       p.innerHTML = `<div class="p-body">
@@ -144,7 +211,7 @@
         <p class="p-sub">${T().chooseSite}</p>
         <div class="sites">${list.map(t => `<button class="site-btn ${t.id === state.targetId ? "on" : ""}" data-id="${t.id}"><b>${esc(short(t.name))}</b><span>${esc(I18N_TARGET_TAG[state.lang][t.id])}</span></button>`).join("")}</div>
       </div>
-      <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button><button class="btn" id="nextBtn" ${state.targetId ? "" : "disabled"}>${T().next} →</button></div>`;
+      <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button><button class="btn" id="nextBtn" ${state.targetId ? "" : "disabled"}>${T().next}</button></div>`;
       p.querySelectorAll(".body-btn").forEach(b => (b.onclick = () => { state.body = b.dataset.b; state.targetId = null; showTargetsOnGlobe(); globe.pointOfView({ lat: 0, lng: 0, altitude: 2.4 }, 1000); renderPanel(); }));
       p.querySelectorAll(".site-btn").forEach(b => (b.onclick = () => pickTarget(b.dataset.id)));
       $("#backBtn").onclick = goHome;
@@ -155,12 +222,12 @@
       p.innerHTML = `<div class="p-body">
         <div class="chosen"><span class="orb ${t.body}" style="width:22px;height:22px;border-radius:50%;display:inline-block"></span><span><b>${esc(short(t.name))}</b> · ${t.body === "Moon" ? T().moon : T().mars}</span></div>
         <h2 class="p-title" style="margin-bottom:14px">${T().chooseMission}</h2>
-        <div class="missions">${Object.keys(PROFILES).map(id => `<button class="mission ${id === state.profile ? "on" : ""}" data-id="${id}"><span class="ic">${PROFILE_ICON[id]}</span><b>${PL(id)}</b><span>${I18N_PROFILE_DESC[state.lang][id]}</span></button>`).join("")}</div>
+        <div class="missions">${Object.keys(PROFILES).map(id => `<button class="mission ${id === state.profile ? "on" : ""}" data-id="${id}">${icon(id)}<b>${PL(id)}</b><span>${I18N_PROFILE_DESC[state.lang][id]}</span></button>`).join("")}</div>
       </div>
-      <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button><button class="btn big" id="launchBtn" ${state.profile ? "" : "disabled"}>🚀 ${T().launch}</button></div>`;
+      <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button><button class="btn big" id="launchBtn" ${state.profile ? "" : "disabled"}>${T().launch}</button></div>`;
       p.querySelectorAll(".mission").forEach(b => (b.onclick = () => { state.profile = b.dataset.id; renderPanel(); }));
       $("#backBtn").onclick = () => go("dest");
-      $("#launchBtn").onclick = launch;
+      $("#launchBtn").onclick = () => { state.code = missionCode(); go("brief"); };
     }
     if (state.stage === "verdict") renderVerdictPanel();
     if (state.stage === "earth") renderEarthPanel();
@@ -180,63 +247,205 @@
     go("intro");
   }
 
-  // ---------- launch sequence ----------
+  // ---------- the journey: GO/NO-GO poll, countdown, cruise, re-entry, touchdown ----------
+  let run = null; // the journey in progress; skipping resolves every wait at once
+  const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const nf = (v, d = 0) => v.toLocaleString(state.lang === "es" ? "es-EC" : "en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const sfx = f => { if (run && !run.skipped) f(); };
+  function pause(ms) {
+    if (!run || run.skipped) return Promise.resolve();
+    if (reduced()) ms = Math.min(ms, 150);
+    return new Promise(res => { const id = setTimeout(res, ms); run.waits.push(() => { clearTimeout(id); res(); }); });
+  }
+  function track(anim) {
+    if (run) { run.anims.push(anim); if (run.skipped) anim.finish(); }
+    // backup in case the browser stops animating a hidden tab
+    const backup = setTimeout(() => { try { anim.finish(); } catch { /* cancelled */ } }, (anim.effect?.getTiming().duration || 0) + 400);
+    return anim.finished.catch(() => {}).finally(() => clearTimeout(backup));
+  }
+  function tween(ms, fn) {
+    if (reduced()) ms = Math.min(ms, 300);
+    if (!run || run.skipped) { fn(1); return Promise.resolve(); }
+    return new Promise(res => {
+      const t0 = performance.now();
+      let done = false;
+      const finish = () => { if (done) return; done = true; clearTimeout(backup); fn(1); res(); };
+      const backup = setTimeout(finish, ms + 400); // browsers pause animation frames in hidden tabs
+      run.waits.push(finish);
+      const step = now => { if (done) return; const k = Math.min(1, (now - t0) / ms); fn(k); if (k < 1) requestAnimationFrame(step); else finish(); };
+      requestAnimationFrame(step);
+    });
+  }
+  function skipJourney() {
+    if (!run || run.skipped) return;
+    run.skipped = true;
+    run.waits.splice(0).forEach(f => f());
+    run.anims.forEach(a => { try { a.finish(); } catch { /* already finished */ } });
+    run.onSkip();
+  }
   async function typeLine(html, cls = "") {
     const body = $("#termBody");
     body.querySelectorAll(".cur").forEach(e => e.classList.remove("cur"));
     const line = document.createElement("div"); line.className = "cur " + cls; body.appendChild(line);
     const text = html.replace(/<[^>]+>/g, "");
-    for (let i = 1; i <= text.length; i += 3) { line.textContent = "> " + text.slice(0, i); await sleep(12); }
+    if (run && !run.skipped && !reduced()) {
+      for (let i = 1; i <= text.length && !run.skipped; i += 3) { line.textContent = "> " + text.slice(0, i); await sleep(12); }
+    }
     line.innerHTML = "> " + html;
-    await sleep(260);
+    body.scrollTop = body.scrollHeight;
+    await pause(240);
   }
   function globeCenter() { const r = gEl.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + Math.min(r.height, innerHeight) / 2 }; }
   function flyShip(from, to, rot, scale, ms) {
-    return $("#ship").animate([
+    return track($("#ship").animate([
       { transform: `translate(${from.x - 32}px, ${from.y - 32}px) rotate(${rot}deg) scale(${scale[0]})`, opacity: 1 },
       { transform: `translate(${to.x - 32}px, ${to.y - 32}px) rotate(${rot}deg) scale(${scale[1]})`, opacity: 1 },
-    ], { duration: ms, easing: "cubic-bezier(.55,.05,.35,1)", fill: "forwards" }).finished;
+    ], { duration: reduced() ? 1 : ms, easing: "cubic-bezier(.55,.05,.35,1)", fill: "forwards" }));
+  }
+
+  // live data links: the verdict uses the stored dataset, these feed the live scan
+  function ping(url) {
+    const ac = new AbortController(), id = setTimeout(() => ac.abort(), 5000);
+    return fetch(url, { signal: ac.signal }).then(r => r.ok).catch(() => false).finally(() => clearTimeout(id));
+  }
+  async function pollSystems(site) {
+    const P = T().poll;
+    const checks = [
+      [P.catalog(CURATED.length), Promise.resolve(true)],
+      [P.target, Promise.resolve(true)],
+      [P.power, ping(`https://power.larc.nasa.gov/api/temporal/climatology/point?parameters=T2M&community=RE&longitude=${site.lon}&latitude=${site.lat}&format=JSON`)],
+      [P.dem, ping(`https://api.open-meteo.com/v1/elevation?latitude=${site.lat}&longitude=${site.lon}`)],
+      [P.pc, ping("https://planetarycomputer.microsoft.com/api/stac/v1/collections/alos-palsar-mosaic")],
+      [P.macro, ping(`https://macrostrat.org/api/v2/geologic_units/map?lat=${site.lat}&lng=${site.lon}`)],
+    ];
+    await typeLine(`<span class="k">${P.title}</span>`);
+    const box = document.createElement("div"); box.className = "poll";
+    $("#termBody").appendChild(box);
+    for (const [label, check] of checks) {
+      const name = document.createElement("span"), status = document.createElement("span");
+      name.textContent = label; status.textContent = P.wait;
+      box.append(name, status);
+      $("#termBody").scrollTop = $("#termBody").scrollHeight;
+      const ok = await Promise.race([check, run.skipP.then(() => true)]);
+      status.textContent = ok ? P.go : P.cache;
+      status.className = ok ? "go" : "cache";
+      sfx(() => SFX.go());
+      await pause(220);
+    }
+    await typeLine(`<span class="ok">${P.all}</span>`);
+  }
+
+  async function countdown() {
+    const el = $("#countdown");
+    el.hidden = false;
+    for (const n of [3, 2, 1]) {
+      if (run.skipped) break;
+      el.innerHTML = `<b>${n}</b>`; sfx(() => SFX.tick());
+      await pause(900);
+    }
+    if (!run.skipped) { el.innerHTML = `<b class="lift">${T().lift}</b>`; sfx(() => { SFX.tick(true); SFX.liftoff(); }); await pause(800); }
+    el.hidden = true; el.innerHTML = "";
+  }
+
+  function warp(on) {
+    const w = $("#warp");
+    if (on && !w.children.length) w.innerHTML = Array.from({ length: 48 }, (_, i) => `<i style="--a:${((i * 137.5) % 360).toFixed(1)}deg;animation-delay:${((i * 0.37) % 1.1).toFixed(2)}s"></i>`).join("");
+    w.classList.toggle("on", on && !reduced());
+  }
+  function hud(show, o = {}) {
+    $("#hud").hidden = !show;
+    if (!show) return;
+    if (o.phase != null) $("#hudPhase").textContent = o.phase;
+    if (o.crew != null) $("#hudCrew").textContent = o.crew;
+    if (o.labels) o.labels.forEach((l, i) => ($(`#hudL${i + 1}`).textContent = l));
+    if (o.values) o.values.forEach((v, i) => ($(`#hudV${i + 1}`).textContent = v));
+    if (o.k != null) $("#hudBar").style.transform = `scaleX(${o.k})`;
+    if (o.note != null) $("#hudNote").textContent = o.note;
   }
 
   async function launch() {
     const t = target(), w = weights();
     state.mode = "match"; state.tab = "verdict"; state.scan = null;
-    const results = rank("match", CURATED);
-    state.selectedId = results[0].site.id;
+    state.code = state.code || missionCode();
+    const results = rank("match", CURATED), win = results[0].site, H = T().hud, L = T().log;
+    state.selectedId = win.id;
+    let onSkip; const skipP = new Promise(r => (onSkip = r));
+    run = { skipped: false, waits: [], anims: [], onSkip, skipP };
     go("launch");
-    $("#termBody").innerHTML = ""; $("#terminal").hidden = false;
+    $("#termBody").innerHTML = ""; $("#termCode").textContent = state.code; $("#terminal").hidden = false;
+    $("#skipBtn").textContent = T().skip; $("#skipBtn").hidden = false;
     ctl.autoRotate = false;
     globe.pointOfView({ lat: Math.abs(t.lat) > 80 ? Math.sign(t.lat) * 75 : t.lat, lng: t.lon, altitude: 1.2 }, 1000);
 
-    const L = T().log;
+    // 1. on the pad: crew, destination profile, then a GO/NO-GO poll of the live data links
     await typeLine(`<span class="k">${L.target(esc(short(t.name)))}</span>`);
+    await typeLine(L.crew(esc(crewName()), esc(roleLabel())));
     const prov = t.prov || {};
-    for (const k of ["relief", "ice", "light"]) if (prov[k]?.kind === "measured") await typeLine(`${ICON[k]} ${esc(prov[k].text)}`);
+    for (const k of ["relief", "ice", "light"]) if (prov[k]?.kind === "measured") await typeLine(esc(prov[k].text));
     await typeLine(L.profile(PL(state.profile)));
+    await pollSystems(win);
+    await countdown();
 
-    // take-off from the target world
+    // 2. lift-off and cruise back to Earth (time compressed, said on the HUD)
     const ship = $("#ship");
     await flyShip(globeCenter(), { x: innerWidth + 80, y: -80 }, 45, [0.6, 1.4], 1300);
     $("#flash").classList.add("on");
-    await sleep(350);
+    await pause(350);
     clearLayers(); setTexture("Earth");
-    globe.pointOfView({ lat: results[0].site.lat, lng: results[0].site.lon - 70, altitude: 3 }, 0);
+    globe.pointOfView({ lat: win.lat, lng: win.lon - 70, altitude: 7 }, 0);
     $("#flash").classList.remove("on");
+    warp(true); sfx(() => SFX.humStart());
+    const moon = t.body === "Moon";
+    const D0 = moon ? 384400 : 225e6, V0 = moon ? 1.5 : 2.6, V1 = moon ? 11 : 12, DAYS = moon ? 3 : 259;
+    hud(true, { phase: H.cruise(t.body), crew: `${crewName()}, ${roleLabel()}`, labels: [H.dist, H.speed, H.time], note: moon ? H.noteMoon : H.noteMars, k: 0 });
+    const CRUISE = 9000;
+    globe.pointOfView({ lat: win.lat, lng: win.lon - 25, altitude: 2.6 }, reduced() || run.skipped ? 0 : CRUISE);
+    await Promise.all([
+      tween(CRUISE, k => hud(true, { k, values: [`${nf(D0 * (1 - k))} km`, `${nf(V0 + (V1 - V0) * k * k, 1)} km/s`, H.day(Math.max(1, Math.round(1 + (DAYS - 1) * k)))] })),
+      (async () => {
+        await typeLine(L.power(CURATED.length));
+        await typeLine(L.dem(CURATED.length));
+        await typeLine(L.terrain);
+        await typeLine(L.compare(KEYS.filter(k => w[k] > 0).length, CURATED.length));
+        showEarthResults(results, false);
+        globe.htmlElementsData([]).ringsData([]);
+        await typeLine(`<span class="ok">${L.best(esc(win.name), results[0].score.toFixed(1))}</span>`);
+      })(),
+    ]);
 
-    await typeLine(L.power(CURATED.length));
-    await typeLine(L.dem(CURATED.length));
-    await typeLine(L.compare(KEYS.filter(k => w[k] > 0).length, CURATED.length));
-    showEarthResults(results, false);
-    globe.htmlElementsData([]).ringsData([]);
-    await typeLine(`<span class="ok">${L.best(esc(results[0].site.name), results[0].score.toFixed(1))}</span>`);
-    await typeLine(L.land);
+    // 3. re-entry over the best twin
+    warp(false); SFX.humStop(); sfx(() => SFX.reentry(4));
+    const ENTRY = 4200, siteShort = win.name.split(" – ")[0];
+    if (!run.skipped) $("#plasma").classList.add("on");
+    globe.pointsData([]).htmlElementsData([]).ringsData([]); // score towers would fill the screen this close
+    hud(true, { phase: H.entry(siteShort), labels: [H.alt, H.speed, H.phase], note: "", k: 0 });
+    globe.pointOfView({ lat: win.lat, lng: win.lon, altitude: 0.5 }, reduced() || run.skipped ? 0 : ENTRY);
+    await Promise.all([
+      flyShip({ x: -80, y: -80 }, globeCenter(), 135, [1.4, 0.35], ENTRY),
+      tween(ENTRY, k => {
+        if (k > 0.55) $("#plasma").classList.remove("on");
+        const ph = k < 0.3 ? 0 : k < 0.65 ? 1 : k < 0.97 ? 2 : 3;
+        hud(true, { k, values: [`${nf(120 * (1 - k) ** 1.6, 1)} km`, `${nf(V1 * (1 - k) ** 2, 2)} km/s`, H.phases[ph]] });
+      }),
+    ]);
+    $("#plasma").classList.remove("on");
 
-    // landing on Earth's best twin
-    globe.pointOfView({ lat: results[0].site.lat, lng: results[0].site.lon, altitude: 1.6 }, 2200);
-    await flyShip({ x: -80, y: -80 }, globeCenter(), 135, [1.4, 0.3], 2000);
-    ship.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: "forwards" });
-    await sleep(500);
-    $("#terminal").hidden = true;
+    // 4. touchdown
+    track(ship.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: "forwards" }));
+    // this close to the ground the score towers would fill the screen: only the lander and its name
+    globe.pointsData([]).arcsData([]).ringsData([{ lat: win.lat, lng: win.lon }])
+      .htmlElementsData([{ lat: win.lat, lng: win.lon, alt: 0.02, el: landerEl() }, { lat: win.lat, lng: win.lon, alt: 0.02, el: labelEl(siteShort, "win") }]);
+    const td = $("#touchdown");
+    td.innerHTML = `<h2>${esc(T().touchdown.title(siteShort))}</h2><p>${esc(T().touchdown.sub(crewName()))}</p>`;
+    hud(false); $("#terminal").hidden = true;
+    td.hidden = false; sfx(() => SFX.touchdown());
+    await pause(2600);
+
+    // 5. debrief
+    td.hidden = true; hud(false); $("#terminal").hidden = true; $("#skipBtn").hidden = true; $("#countdown").hidden = true;
+    warp(false); SFX.humStop(); $("#plasma").classList.remove("on"); $("#flash").classList.remove("on");
+    ship.getAnimations().forEach(a => a.cancel());
+    run = null;
     go("verdict");
     showEarthResults(results, true);
     writeHash();
@@ -260,9 +469,25 @@
       case "radiation": return pw.sw == null ? "" : `${pw.sw.toFixed(1)} kWh/m²/d · UV ${pw.uv?.toFixed(1)} · NASA POWER`;
       case "light": return pw.sw_min == null ? "" : `${es ? "mes oscuro/brillante" : "dark/bright month"} ${(pw.sw_min / pw.sw_max).toFixed(2)} · NASA POWER`;
       case "relief": return s.relief_m == null ? "" : `${Math.round(s.relief_m)} m ${es ? "en 15 km" : "within 15 km"} · Copernicus DEM`;
-      case "barren": if (s.ndvi != null) return `NDVI ${s.ndvi.toFixed(2)} · MODIS MOD13Q1 (ORNL DAAC)`; // else falls through
-      default: return s.scanned ? (es ? "sin datos: requiere campo" : "no data: needs fieldwork") : (es ? "estimado de literatura geológica" : "estimate from geologic literature");
+      case "barren": if (s.ndvi != null) return `NDVI ${s.ndvi.toFixed(2)} · MODIS MOD13Q1 (ORNL DAAC)`; break;
     }
+    const g = s.geo || {}, pct = v => `${Math.round(v * 100)}%`;
+    if (s.geo_kind?.[k]) switch (k) {
+      case "basalt": case "salts": {
+        const m = g.macrostrat;
+        return `${es ? "Mapa geológico" : "Geologic map"}: “${m.unit}” · ${es ? "puntaje medio" : "mean score"} ${m[k].toFixed(2)} ${es ? "en" : "over"} ${m[`${k}_n`]} ${es ? "puntos en 15 km" : "points within 15 km"} · Macrostrat`;
+      }
+      case "sediment": {
+        const m = g.macrostrat, w = g.gsw;
+        return `${es ? "Mapa geológico" : "Geologic map"}: “${m.unit}” · Macrostrat` + (w ? ` · ${es ? "agua alguna vez desde 1984 en" : "water seen since 1984 on"} ${pct(w.ever_wet)} ${es ? "del área" : "of the area"} (JRC GSW)` : "");
+      }
+      case "ice": {
+        const t = g.lst, wc = g.worldcover;
+        return `${es ? "T superficial media" : "Mean surface T"} ${t.lst_mean_c.toFixed(1)} °C · MODIS MOD11A2 ${LST_YEAR}` + (wc && wc.snow_ice > 0 ? ` · ${es ? "hielo/nieve permanente" : "permanent snow/ice"} ${pct(wc.snow_ice)} (ESA WorldCover)` : "");
+      }
+      case "regolith": return `${es ? "Radar banda L" : "L-band radar"} HV ${g.palsar.hv_db.toFixed(1)} dB (${es ? "oscuro = fino y suelto" : "dark = fine and loose"}) · ALOS PALSAR (JAXA)`;
+    }
+    return s.scanned ? (es ? "sin datos: requiere campo" : "no data: needs fieldwork") : (es ? "estimado de literatura geológica" : "estimate from geologic literature");
   }
   function targetDetail(k, t) {
     const p = t.prov?.[k];
@@ -271,7 +496,7 @@
 
   function ring(score) {
     const r = 38, c = 2 * Math.PI * r, p = TW.clamp(score / 100);
-    return `<svg class="ring" viewBox="0 0 92 92"><circle cx="46" cy="46" r="${r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="8"/>
+    return `<svg class="ring" viewBox="0 0 92 92"><circle class="bg" cx="46" cy="46" r="${r}" fill="none" stroke-width="8"/>
       <circle cx="46" cy="46" r="${r}" fill="none" stroke="${scoreColor(score)}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${c * p} ${c}" transform="rotate(-90 46 46)"/>
       <text x="46" y="50" text-anchor="middle" font-size="24">${score.toFixed(0)}</text><text class="lbl" x="46" y="66" text-anchor="middle" font-size="9">/ 100</text></svg>`;
   }
@@ -283,7 +508,7 @@
     const tabs = ["verdict", "top", "camp", "map", "evidence", "scan"];
     p.innerHTML = `<nav class="tabs">${tabs.map(k => `<button data-tab="${k}" class="${k === state.tab ? "on" : ""}">${T().tabs[k]}</button>`).join("")}</nav>
       <div class="p-body" id="tabBody"></div>
-      <div class="p-foot"><button class="btn ghost" id="newBtn">↺ ${T().newMission}</button><button class="btn" id="cardBtn">⬇ ${T().card}</button></div>`;
+      <div class="p-foot"><button class="btn ghost" id="newBtn">${T().newMission}</button><button class="btn ghost" id="cardBtn">${T().card}</button><button class="btn" id="certBtn">${T().cert.btn}</button></div>`;
     p.querySelectorAll(".tabs button").forEach(b => (b.onclick = () => {
       const prev = state.tab;
       state.tab = b.dataset.tab; renderVerdictPanel();
@@ -291,14 +516,15 @@
       if (state.peek) unpeek(false);
       if (["camp", "map"].includes(prev) && prev !== state.tab) showEarthResults(rank(), true);
     }));
-    $("#hint").textContent = state.lang === "es" ? "🛰 Haz clic en cualquier punto del globo" : "🛰 Click any point on the globe";
+    $("#hint").textContent = state.lang === "es" ? "Haz clic en cualquier punto del globo" : "Click any point on the globe";
     $("#newBtn").onclick = () => { state.profile = null; state.scan = null; clearLayers(); go("dest"); pickTarget(state.targetId); };
     const results = rank();
     $("#cardBtn").onclick = () => exportCard(results.find(r => r.site.id === state.selectedId) || results[0]);
+    $("#certBtn").onclick = () => exportCertificate(results.find(r => r.site.id === state.selectedId) || results[0]);
     ({ verdict: tabVerdict, top: tabTop, camp: tabCamp, map: tabMap, evidence: tabEvidence, scan: tabScan })[state.tab](results, t);
     const tab = state.tab;
     $("#tabBody").insertAdjacentHTML("afterbegin",
-      `<details class="about" ${helpOpen.has(tab) ? "open" : ""}><summary>❓ ${T().helpQ}</summary><p>${T().help[tab]}</p></details>`);
+      `<details class="about" ${helpOpen.has(tab) ? "open" : ""}><summary>${T().helpQ}</summary><p>${T().help[tab]}</p></details>`);
     $("#tabBody .about").addEventListener("toggle", e => (e.target.open ? helpOpen.add(tab) : helpOpen.delete(tab)));
   }
 
@@ -310,20 +536,20 @@
     const scored = KEYS.filter(k => r.per[k] != null && w[k] > 0);
     const reasons = scored.filter(k => t[k] >= 0.3 && r.per[k] >= 0.7).sort((a, b) => w[b] * r.per[b] - w[a] * r.per[a]).slice(0, 3);
     const gaps = scored.filter(k => r.per[k] < 0.6).sort((a, b) => w[b] * (1 - r.per[b]) - w[a] * (1 - r.per[a])).slice(0, 2);
-    const lead = isWin ? T().verdictLead(PL(state.profile), esc(short(t.name)))
+    const lead = isWin ? (state.crew.name.trim() ? T().verdictLeadNamed(esc(crewName()), PL(state.profile), esc(short(t.name))) : T().verdictLead(PL(state.profile), esc(short(t.name))))
       : `#${pos} ${T().of} ${results.length} · ${esc(short(t.name))} · ${PL(state.profile)}`;
     $("#tabBody").innerHTML = `
       <p class="lead">${lead}</p>
       <div class="winner">${ring(r.score)}<div><h2>${esc(s.name)}</h2><div class="country">${esc(s.country)} ${usage}</div></div></div>
       ${s.scanned ? "" : `<button class="btn place-btn" id="placeBtn">${T().place.btn}</button>`}
-      <div class="sec">✅ ${T().why}</div>
-      <ul class="reasons">${reasons.map(k => `<li><span class="ic">${ICON[k]}</span><span><b>${FL(k)}</b><small>${esc(earthDetail(k, s))}</small><small>${t.body === "Moon" ? T().moon : T().mars}: ${esc(targetDetail(k, t))}</small></span><span class="pct" style="color:${matchColor(r.per[k])}">${Math.round(r.per[k] * 100)}%</span></li>`).join("") || "<li>—</li>"}</ul>
-      <div class="sec">⚠️ ${T().cannot}</div>
-      <ul class="reasons bad">${gaps.map(k => `<li><span class="ic">${ICON[k]}</span><span><b>${FL(k)}</b><small>${esc(earthDetail(k, s))}</small></span><span class="pct" style="color:${matchColor(r.per[k])}">${Math.round(r.per[k] * 100)}%</span></li>`).join("") || "<li>—</li>"}</ul>
+      <div class="sec">${T().why}</div>
+      <ul class="reasons">${reasons.map(k => `<li><span><b>${FL(k)}</b><small>${esc(earthDetail(k, s))}</small><small>${t.body === "Moon" ? T().moon : T().mars}: ${esc(targetDetail(k, t))}</small></span><span class="pct" style="color:${matchColor(r.per[k])}">${Math.round(r.per[k] * 100)}%</span></li>`).join("") || "<li>—</li>"}</ul>
+      <div class="sec">${T().cannot}</div>
+      <ul class="reasons bad">${gaps.map(k => `<li><span><b>${FL(k)}</b><small>${esc(earthDetail(k, s))}</small></span><span class="pct" style="color:${matchColor(r.per[k])}">${Math.round(r.per[k] * 100)}%</span></li>`).join("") || "<li>—</li>"}</ul>
       <div class="radar-wrap"><canvas id="radar"></canvas></div>
       ${s.note ? `<p class="note">${esc(s.note)}</p>` : ""}
       ${reverseHtml(s)}
-      <div class="sec">🛰 ${T().dataUsed}</div>
+      <div class="sec">${T().dataUsed}</div>
       <div class="chips">${["NASA POWER", "Copernicus DEM", ...new Set(Object.values(t.prov || {}).filter(p => p.kind === "measured").map(p => p.text.split(":")[0]))].map(c => `<span class="chip">${esc(c)}</span>`).join("")}</div>`;
     drawRadar(s, t);
     bindReverse();
@@ -354,7 +580,7 @@
         return `<li data-id="${s.id}" class="${s.id === state.selectedId ? "on" : ""}"><div><b>${esc(s.name)}${b}</b><small>${esc(s.country)}</small>
           <div class="bar"><i style="width:${TW.clamp(r.value / 80) * 100}%;background:${scoreColor(r.score, lo, hi)}"></i></div></div><span class="v">${r.value.toFixed(0)}</span></li>`;
       }).join("")}</ol>
-      <button class="btn ghost" id="csvBtn" style="margin-top:10px">⬇ ${T().csv}</button>`;
+      <button class="btn ghost" id="csvBtn" style="margin-top:10px">${T().csv}</button>`;
     document.querySelectorAll(".seg button").forEach(b => (b.onclick = () => {
       state.mode = b.dataset.m; const res = rank(); state.selectedId = res[0].site.id;
       renderVerdictPanel(); showEarthResults(res, true); writeHash();
@@ -381,11 +607,11 @@
     const singleCov = 100 * KEYS.reduce((a, k) => a + w[k] * (single.per[k] ?? 0), 0) / tot;
     const roles = new Map(camp.chosen.map(c => [c, []]));
     KEYS.forEach(k => { const o = camp.owner[k]; if (o.site && w[k] > 0 && o.value >= 0.7 && t[k] >= 0.3) roles.get(o.site).push(k); });
-    $("#tabBody").innerHTML = `<h2 class="p-title">🧩 ${T().campTitle}</h2>
+    $("#tabBody").innerHTML = `<h2 class="p-title">${T().campTitle}</h2>
       <p class="p-sub">${T().campLead(camp.coverage.toFixed(0), singleCov.toFixed(0))}</p>
       <div class="camp">${camp.chosen.map((c, i) => `<div><b>${i + 1}. ${esc(c.site.name)}</b><small>${esc(c.site.country)} · ${c.score.toFixed(0)}/100</small>
-        <small>${T().covers}: ${roles.get(c).map(k => ICON[k] + " " + FL(k)).join(", ") || "—"}</small></div>`).join("")}</div>
-      <div class="covbars">${KEYS.filter(k => w[k] > 0).map(k => { const v = camp.owner[k].value; return `<div class="row"><span>${ICON[k]} ${FL(k)}</span><div class="track"><i style="width:${v * 100}%;background:${matchColor(v)}"></i></div><span>${Math.round(v * 100)}</span></div>`; }).join("")}</div>
+        <small>${T().covers}: ${roles.get(c).map(k => FL(k)).join(", ") || "—"}</small></div>`).join("")}</div>
+      <div class="covbars">${KEYS.filter(k => w[k] > 0).map(k => { const v = camp.owner[k].value; return `<div class="row"><span>${FL(k)}</span><div class="track"><i style="width:${v * 100}%;background:${matchColor(v)}"></i></div><span>${Math.round(v * 100)}</span></div>`; }).join("")}</div>
       <p class="foot-note">${T().beyond}</p>`;
     drawCampaignArcs(camp);
   }
@@ -393,12 +619,12 @@
   function tabEvidence(results, t) {
     const r = results.find(x => x.site.id === state.selectedId) || results[0], s = r.site;
     const kindOf = k => t.prov?.[k]?.kind || "literature";
-    const earthKind = k => (CLIMATE_KEYS.includes(k) || k === "relief" || (k === "barren" && s.ndvi != null) ? "measured" : "literature");
-    $("#tabBody").innerHTML = `<h2 class="p-title">🔬 ${T().evTitle}</h2>
+    const earthKind = k => s.geo_kind?.[k] || (CLIMATE_KEYS.includes(k) || k === "relief" || (k === "barren" && s.ndvi != null) ? "measured" : "literature");
+    $("#tabBody").innerHTML = `<h2 class="p-title">${T().evTitle}</h2>
       <div class="sec">${T().evTarget}: ${esc(short(t.name))}</div>
-      <table class="ev">${KEYS.map(k => `<tr><td>${ICON[k]} ${FL(k)}</td><td><span class="badge ${kindOf(k)}">${T().kinds[kindOf(k)]}</span><div class="src">${esc(targetDetail(k, t))}</div></td><td class="v">${t[k].toFixed(2)}</td></tr>`).join("")}</table>
+      <table class="ev">${KEYS.map(k => `<tr><td>${FL(k)}</td><td><span class="badge ${kindOf(k)}">${T().kinds[kindOf(k)]}</span><div class="src">${esc(targetDetail(k, t))}</div></td><td class="v">${t[k].toFixed(2)}</td></tr>`).join("")}</table>
       <div class="sec">${T().evEarth}: ${esc(s.name)}</div>
-      <table class="ev">${KEYS.map(k => `<tr><td>${ICON[k]} ${FL(k)}</td><td><span class="badge ${earthKind(k)}">${T().kinds[earthKind(k)]}</span><div class="src">${esc(earthDetail(k, s))}</div></td><td class="v">${s.fp[k] == null ? "?" : s.fp[k].toFixed(2)}</td></tr>`).join("")}</table>
+      <table class="ev">${KEYS.map(k => `<tr><td>${FL(k)}</td><td><span class="badge ${earthKind(k)}">${T().kinds[earthKind(k)]}</span><div class="src">${esc(earthDetail(k, s))}</div></td><td class="v">${s.fp[k] == null ? "?" : s.fp[k].toFixed(2)}</td></tr>`).join("")}</table>
       <p class="foot-note">${T().beyond}<br>Dataset: ${esc(generated)}</p>`;
   }
 
@@ -409,10 +635,10 @@
     else if (sc) {
       const r = results.find(x => x.site.id === sc.id);
       const pos = rank("match", CURATED.concat(sc)).findIndex(x => x.site.id === sc.id) + 1;
-      box = `<div class="scanbox"><b>📍 ${sc.lat.toFixed(3)}°, ${sc.lon.toFixed(3)}°</b> · ${Math.round(sc.elev ?? 0)} m<br>${T().scanResult(r.score.toFixed(1), pos, CURATED.length + 1)}
-        <p class="help" style="margin-top:8px">${T().scanAxes}</p><button class="btn" id="seeScan">→ ${T().tabs.verdict}</button>${reverseHtml(sc)}</div>`;
+      box = `<div class="scanbox"><b>${sc.lat.toFixed(3)}°, ${sc.lon.toFixed(3)}°</b> · ${Math.round(sc.elev ?? 0)} m<br>${T().scanResult(r.score.toFixed(1), pos, CURATED.length + 1)}
+        <p class="help" style="margin-top:8px">${T().scanAxes}</p><button class="btn" id="seeScan">${T().tabs.verdict}</button>${reverseHtml(sc)}</div>`;
     }
-    $("#tabBody").innerHTML = `<h2 class="p-title">🛰 ${T().scanTitle}</h2><p class="p-sub">${T().scanHelp}</p>${box}`;
+    $("#tabBody").innerHTML = `<h2 class="p-title">${T().scanTitle}</h2><p class="p-sub">${T().scanHelp}</p>${box}`;
     const b = $("#seeScan"); if (b) b.onclick = () => selectSite(sc.id);
     bindReverse();
   }
@@ -443,12 +669,14 @@
     state.scanBusy = true; renderPanel();
     globe.ringsData([{ lat, lng }]);
     try {
-      const [power, rel, ndvi] = await Promise.all([fetchPower(lat, lng), fetchReliefWindow(lat, lng), fetchNdvi(lat, lng)]);
+      const [power, rel, ndvi, geo] = await Promise.all([fetchPower(lat, lng), fetchReliefWindow(lat, lng), fetchNdvi(lat, lng), fetchGeology(lat, lng)]);
       if (power.t2m == null) throw new Error("no data");
       const s = { id: "scan", name: state.lang === "es" ? "Punto escaneado" : "Scanned point", country: `${lat.toFixed(3)}°, ${lng.toFixed(3)}°`, lat, lon: lng,
         scanned: true, usage: 0, access: null, power, elev: rel.center, relief_m: rel.relief_m, relief: TW.clamp(rel.relief_m / 1500) };
       KEYS.forEach(k => { if (!CLIMATE_KEYS.includes(k) && k !== "relief") s[k] = null; });
       if (ndvi != null) { s.ndvi = ndvi; s.barren = TW.clamp((0.5 - ndvi) / 0.4); }
+      s.geo = geo; s.geo_kind = {};
+      Object.entries(TW.geoAxes(geo, rel.relief_m)).forEach(([k, v]) => { s[k] = v; s.geo_kind[k] = GEO_KIND[k]; });
       s.fp = TW.fingerprint(s);
       state.scan = s; state.selectedId = "scan";
     } catch (e) {
@@ -471,6 +699,98 @@
     } catch { return null; }
   }
 
+  // ---------- live terrain measurements (same method as pipeline/geology.py) ----------
+  const PC = "https://planetarycomputer.microsoft.com/api";
+  const RX = {
+    basaltStrong: /basalt|basanit|tholeiit|picrit|mafic|komatiit|gabbro|diabase|dolerit/, basaltWeak: /lava|scoria|cinder|tephra|volcanic|pyroclast|tuff|ignimbrit|andesit/,
+    salt: /evaporit|halite|gypsum|anhydrit|salt|salar|playa|sabkha|nitrate|borate|trona/,
+    sedStrong: /lacustrin|\blake|fluvi|alluvi|delta|river|stream|channel|floodplain|playa|terrace|outwash|glaciofluv/, sedWeak: /sediment|sand|silt|clay|mud|conglomerat|gravel|unconsolidated/,
+  };
+  const SCALE_ORDER = { large: 0, medium: 1, small: 2, tiny: 3 };
+  // map scales that can resolve each axis in a 15 km window (see pipeline/geology.py)
+  const AXIS_SCALES = { basalt: ["large", "medium", "small"], salts: ["large", "medium"], sediment: ["large", "medium"] };
+  const postJson = async (url, body) => { const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); if (!r.ok) throw new Error(r.status); return r.json(); };
+
+  async function macroPoint(lat, lon) {
+    const js = await (await fetch(`https://macrostrat.org/api/v2/geologic_units/map?lat=${lat.toFixed(4)}&lng=${lon.toFixed(4)}`)).json();
+    const units = (js.success?.data || []).sort((a, b) => (SCALE_ORDER[a.scale] ?? 4) - (SCALE_ORDER[b.scale] ?? 4));
+    for (const u of units) {
+      const text = ["name", "lith", "descrip"].map(k => u[k] || "").join(" ").toLowerCase();
+      if (text.trim().length < 4) continue;
+      return { unit: (u.name || u.lith || "").slice(0, 80), scale: u.scale, basalt: RX.basaltStrong.test(text) ? 1 : RX.basaltWeak.test(text) ? 0.5 : 0,
+        salts: RX.salt.test(text) ? 1 : 0, sediment: RX.sedStrong.test(text) ? 1 : RX.sedWeak.test(text) ? 0.4 : 0 };
+    }
+    return null;
+  }
+  async function fetchGeology(lat, lon) {
+    const km = 15, dlat = km / 111.2, kx = 111.2 * Math.max(Math.cos((lat * Math.PI) / 180), 0.05), dlon = km / kx;
+    const bbox = [lon - dlon, Math.max(lat - dlat, -89.9), lon + dlon, Math.min(lat + dlat, 89.9)];
+    const feat = { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [[[bbox[0], bbox[1]], [bbox[2], bbox[1]], [bbox[2], bbox[3]], [bbox[0], bbox[3]], [bbox[0], bbox[1]]]] } };
+    const search = async (collection, datetime, limit = 100) => (await postJson(`${PC}/stac/v1/search`, { collections: [collection], bbox, limit, ...(datetime ? { datetime } : {}) })).features;
+    const stats = async (collection, id, asset, extra = "") => {
+      const js = await postJson(`${PC}/data/v1/item/statistics?collection=${collection}&item=${encodeURIComponent(id)}&assets=${asset}${extra}`, feat);
+      const band = Object.values(js.properties?.statistics || js)[0];
+      return band && band.valid_pixels ? band : null;
+    };
+    const categorical = async (collection, asset) => {
+      const counts = {};
+      for (const b of await Promise.all((await search(collection)).map(it => stats(collection, it.id, asset, "&categorical=true").catch(() => null))))
+        if (b) b.histogram[0].forEach((n, i) => { const v = b.histogram[1][i]; counts[v] = (counts[v] || 0) + n; });
+      return counts;
+    };
+    const safe = p => p.catch(() => null);
+    const step = km / 2, pts = [];
+    for (const i of [0, -1, 1]) for (const j of [0, -1, 1]) pts.push([lat + (i * step) / 111.2, lon + (j * step) / kx]);
+    const [macro, wc, gsw, palsar, lst] = await Promise.all([
+      safe((async () => {
+        const res = await Promise.all(pts.map(p => macroPoint(...p).catch(() => null))), ok = res.filter(Boolean);
+        if (!ok.length) return null;
+        const out = { n: ok.length, unit: (res[0] || ok[0]).unit };
+        Object.entries(AXIS_SCALES).forEach(([k, scales]) => {
+          const use = ok.filter(r => scales.includes(r.scale)).map(r => r[k]);
+          if (use.length) { out[k] = use.reduce((a, b) => a + b, 0) / use.length; out[`${k}_n`] = use.length; }
+        });
+        return out;
+      })()),
+      safe((async () => {
+        const c = await categorical("esa-worldcover", "map"), tot = Object.values(c).reduce((a, b) => a + b, 0);
+        return tot ? { snow_ice: (c[70] || 0) / tot, bare: (c[60] || 0) / tot, water: (c[80] || 0) / tot } : null;
+      })()),
+      safe((async () => {
+        const c = await categorical("jrc-gsw", "occurrence");
+        let tot = 0, wet = 0;
+        Object.entries(c).forEach(([v, n]) => { if (+v <= 100) { tot += n; if (+v > 0) wet += n; } });
+        return tot ? { ever_wet: wet / tot } : null;
+      })()),
+      safe((async () => {
+        for (const year of ["2020", "2019", "2021"]) { // 2021 has gaps (e.g. the Atacama)
+          let num = 0, den = 0;
+          for (const b of await Promise.all((await search("alos-palsar-mosaic", `${year}-01-01/${year}-12-31`)).map(it => stats("alos-palsar-mosaic", it.id, "HV").catch(() => null))))
+            if (b && b.median >= 10) { num += (20 * Math.log10(b.median) - 83) * b.valid_pixels; den += b.valid_pixels; }
+          if (den) return { hv_db: num / den, year: +year };
+        }
+        return null;
+      })()),
+      safe((async () => {
+        // live scan: 4 seasonal composites (the catalog uses all 12 months)
+        const items = (await search("modis-11A2-061", `${LST_YEAR}-01-01/${LST_YEAR}-12-31`, 500)).filter(it => it.id.startsWith("MOD11A2"));
+        const byDate = {};
+        items.forEach(it => (byDate[it.properties.start_datetime.slice(0, 10)] ||= []).push(it));
+        const months = {};
+        Object.keys(byDate).sort().forEach(d => { if (!months[d.slice(0, 7)]) months[d.slice(0, 7)] = d; });
+        const picks = ["01", "04", "07", "10"].map(m => months[`${LST_YEAR}-${m}`]).filter(Boolean);
+        const vals = await Promise.all(picks.flatMap(d => ["LST_Day_1km", "LST_Night_1km"].map(async asset => {
+          let num = 0, den = 0;
+          for (const it of byDate[d]) { const b = await stats("modis-11A2-061", it.id, asset).catch(() => null); if (b && b.mean) { num += b.mean * b.valid_pixels; den += b.valid_pixels; } }
+          return den ? (num / den) * 0.02 - 273.15 : null;
+        })));
+        const ok = vals.filter(v => v != null);
+        return ok.length ? { lst_mean_c: ok.reduce((a, b) => a + b, 0) / ok.length } : null;
+      })()),
+    ]);
+    return { macrostrat: macro, worldcover: wc, gsw, palsar, lst };
+  }
+
   // ---------- reverse twin: which Moon/Mars site does this Earth place resemble? ----------
   function reverseTwins(site) {
     const w = TW.profileWeights("balanced");
@@ -478,10 +798,10 @@
   }
   function reverseHtml(site) {
     const list = reverseTwins(site).slice(0, 3);
-    return `<div class="sec">🔄 ${T().reverse.title}</div><p class="help">${T().reverse.lead}</p>
+    return `<div class="sec">${T().reverse.title}</div><p class="help">${T().reverse.lead}</p>
       <ul class="twins">${list.map((r, i) => `<li><span class="orb ${r.t.body}"></span><span><b>${esc(short(r.t.name))}</b><small>${r.t.body === "Moon" ? T().moon : T().mars}</small>
         <span class="bar"><i style="width:${r.score}%;background:${i === 0 ? "var(--target)" : "var(--accent)"}"></i></span></span>
-        <span class="v">${r.score.toFixed(0)}</span><button class="mini-btn" data-peek="${r.t.id}">🔭 ${T().reverse.see}</button></li>`).join("")}</ul>`;
+        <span class="v">${r.score.toFixed(0)}</span><button class="mini-btn" data-peek="${r.t.id}">${T().reverse.see}</button></li>`).join("")}</ul>`;
   }
   function bindReverse() { document.querySelectorAll("[data-peek]").forEach(b => (b.onclick = () => peek(b.dataset.peek))); }
 
@@ -496,7 +816,7 @@
     globe.pointOfView({ lat: Math.abs(t.lat) > 80 ? Math.sign(t.lat) * 70 : t.lat, lng: t.lon, altitude: 1.5 }, 1400);
     let bar = $("#peekBar");
     if (!bar) { bar = document.createElement("div"); bar.id = "peekBar"; bar.className = "peekbar"; document.body.appendChild(bar); }
-    bar.innerHTML = `<span>🔭 ${T().reverse.viewing(esc(short(t.name)))}</span><button class="btn" id="unpeek">${T().reverse.backEarth}</button>`;
+    bar.innerHTML = `<span>${T().reverse.viewing(esc(short(t.name)))}</span><button class="btn" id="unpeek">${T().reverse.backEarth}</button>`;
     bar.hidden = false;
     $("#unpeek").onclick = () => unpeek(true);
   }
@@ -527,13 +847,13 @@
     if (state.scanBusy) body = `<div class="scanbox busy">${T().scanning}</div>`;
     else if (sc) {
       const best = reverseTwins(sc)[0];
-      body = `<div class="scanbox"><b>📍 ${esc(sc.name)}</b><br><small class="help">${esc(sc.country)}${sc.elev != null ? ` · ${Math.round(sc.elev)} m` : ""}</small>
+      body = `<div class="scanbox"><b>${esc(sc.name)}</b><br><small class="help">${esc(sc.country)}${sc.elev != null ? ` · ${Math.round(sc.elev)} m` : ""}</small>
         ${sc.scanned ? "" : `<button class="btn place-btn" id="placeBtn">${T().place.btn}</button>`}
         ${reverseHtml(sc)}
         <div class="radar-wrap"><canvas id="radar"></canvas></div></div>`;
       setTimeout(() => { if ($("#radar")) drawRadar(sc, best.t); }, 0);
     }
-    $("#panel").innerHTML = `<div class="p-body"><h2 class="p-title">🌍 ${E.title}</h2><p class="p-sub">${E.help}</p>${body}</div>
+    $("#panel").innerHTML = `<div class="p-body"><h2 class="p-title">${E.title}</h2><p class="p-sub">${E.help}</p>${body}</div>
       <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button><button class="btn" id="toMission">${E.toMission}</button></div>`;
     $("#backBtn").onclick = goHome;
     const pb = $("#placeBtn"); if (pb && sc) pb.onclick = () => openPlace(sc, reverseTwins(sc)[0].t);
@@ -617,10 +937,10 @@
     const scored = gridScores();
     drawHeatmap();
     const hs = hotspots(scored);
-    $("#tabBody").innerHTML = `<h2 class="p-title">🔥 ${M.title}</h2><p class="p-sub">${M.lead(scored.length, window.TW_GRID.step)}</p>
+    $("#tabBody").innerHTML = `<h2 class="p-title">${M.title}</h2><p class="p-sub">${M.lead(scored.length, window.TW_GRID.step)}</p>
       <div class="legend-bar"><span>${Math.round(Math.min(...scored.map(c => c.score)))}</span><i style="background:linear-gradient(90deg,${STOPS.join(",")})"></i><span>${Math.round(Math.max(...scored.map(c => c.score)))}</span></div>
       <p class="help">${M.climateOnly}</p>
-      <div class="sec">💎 ${M.hotspots}</div>
+      <div class="sec">${M.hotspots}</div>
       <ol class="rank" id="hotList">${hs.map((c, i) => `<li data-i="${i}"><div><b id="hs${i}">${c.lat.toFixed(1)}°, ${c.lon.toFixed(1)}°</b><small>${c.power.t2m.toFixed(1)} °C · ${(c.power.precip * 365).toFixed(0)} mm/${state.lang === "es" ? "año" : "yr"} · ${c.power.ps.toFixed(0)} kPa</small></div><span class="v">${c.score.toFixed(0)}</span></li>`).join("")}</ol>`;
     document.querySelectorAll("#hotList li").forEach(li => (li.onclick = () => { const c = hs[+li.dataset.i]; globe.pointOfView({ lat: c.lat, lng: c.lon, altitude: 1.3 }, 1200); globe.ringsData([{ lat: c.lat, lng: c.lon }]); }));
     globe.pointOfView({ lat: hs[0]?.lat ?? 0, lng: hs[0]?.lon ?? 0, altitude: 2.4 }, 1400);
@@ -653,25 +973,25 @@
     if (!m) { m = document.createElement("div"); m.id = "placeModal"; m.className = "modal"; document.body.appendChild(m); }
     m.innerHTML = `<div class="modal-card" role="dialog" aria-modal="true" aria-label="${esc(P.title)}">
       <header class="modal-head"><div><small>${P.title}</small><h2>${esc(site.name)}</h2><span class="help">${esc(site.country)}</span></div>
-        <button class="modal-x" id="placeClose" aria-label="${P.close}">✕</button></header>
+        <button class="modal-x" id="placeClose" aria-label="${P.close}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
       <div class="modal-body">
         <div class="place-top">
           ${ph ? `<figure class="photo"><img src="${esc(ph.src)}" alt="${esc(site.name)}" loading="lazy">
-            <figcaption>📷 ${esc(ph.author)} · ${esc(ph.license)} · <a href="${esc(ph.page)}" target="_blank" rel="noopener">Wikimedia Commons</a></figcaption></figure>`
+            <figcaption>${P.photo}: ${esc(ph.author)} · ${esc(ph.license)} · <a href="${esc(ph.page)}" target="_blank" rel="noopener">Wikimedia Commons</a></figcaption></figure>`
             : `<p class="help">${P.noPhoto}</p>`}
           <div class="wiki">${txt ? `<p>${esc(txt.extract)}</p><a href="${esc(txt.url)}" target="_blank" rel="noopener">${P.read}</a><small>${P.textCredit}</small>` : `<p class="help">${P.noText}</p>`}
             ${site.note ? `<p class="note">${esc(site.note)}</p>` : ""}</div>
         </div>
-        <div class="sec">🛰 ${P.compare(esc(site.name.split(" – ")[0]), esc(short(t.name)))}</div>
+        <div class="sec">${P.compare(esc(site.name.split(" – ")[0]), esc(short(t.name)))}</div>
         <div class="cmp" id="cmp" style="--pos:50%">
           <img src="assets/views/target/${t.id}.jpg" alt="${esc(t.name)}">
           <img class="cmp-earth" src="assets/views/earth/${site.id}.jpg" alt="${esc(site.name)}">
           <span class="cmp-line"></span>
-          <span class="cmp-tag left">🌍 ${P.earth}</span><span class="cmp-tag right">${t.body === "Moon" ? "🌕" : "🔴"} ${world}</span>
+          <span class="cmp-tag left">${P.earth}</span><span class="cmp-tag right">${world}</span>
           <span class="cmp-scale"><i></i>10 km</span>
           <input type="range" min="0" max="100" value="50" id="cmpRange" aria-label="${esc(P.compare(site.name, t.name))}">
         </div>
-        <div class="cmp-src"><span>🌍 ${viewSource(site)}</span><span>${t.body === "Moon" ? "🌕" : "🔴"} ${targetSource(t)}</span></div>
+        <div class="cmp-src"><span>${P.earth}: ${viewSource(site)}</span><span>${world}: ${targetSource(t)}</span></div>
         <p class="help">${P.compareHelp}</p>
       </div></div>`;
     m.hidden = false;
@@ -717,6 +1037,25 @@ _Earth Analogs · NASA Space Apps 2026 · ${new Date().toISOString().slice(0, 10
     download(`earth-analogs_${s.id}_${t.id}.md`, md, "text/markdown");
   }
 
+  function downloadBlob(name, blob) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  async function exportCertificate(r) {
+    const s = r.site, t = target(), C = T().cert;
+    const code = state.code || missionCode();
+    const blob = await Patch.certificate({
+      title: C.title, name: crewName(), role: roleLabel(),
+      patch: { name: crewName(), code, body: t.body },
+      statement: C.statement(PL(state.profile), short(t.name)),
+      rows: [[C.code, code], [C.target, `${short(t.name)}, ${t.body === "Moon" ? T().moon : T().mars}`], [C.mission, PL(state.profile)],
+        [C.twin, `${s.name}, ${s.country}`], [C.score, `${r.score.toFixed(1)} / 100`], [C.date, new Date().toLocaleDateString(state.lang)]],
+      footer: C.footer,
+    });
+    downloadBlob(`earth-analogs_${code}.png`, blob);
+  }
+
   // ---------- deep links ----------
   function writeHash() { history.replaceState(null, "", `#t=${state.targetId}&p=${state.profile}&m=${state.mode}`); }
   function readHash() {
@@ -729,7 +1068,10 @@ _Earth Analogs · NASA Space Apps 2026 · ${new Date().toISOString().slice(0, 10
   }
 
   // ---------- boot ----------
-  $("#startBtn").onclick = () => { go("dest"); ctl.autoRotate = false; showTargetsOnGlobe(); globe.pointOfView({ lat: -20, lng: 20, altitude: 2.4 }, 1200); };
+  $("#startBtn").onclick = () => go("crew");
+  $("#soundBtn").onclick = () => { SFX.set(!SFX.on); renderChrome(); SFX.go(); };
+  $("#skipBtn").onclick = skipJourney;
+  addEventListener("keydown", e => { if (e.key === "Escape" && run) skipJourney(); });
   $("#homeBtn").onclick = goHome;
   $("#earthBtn").onclick = () => { state.scan = null; state.targetId = null; ctl.autoRotate = false; go("earth"); showEarthMode(true); };
   document.querySelectorAll("#lang button").forEach(b => (b.onclick = () => {
