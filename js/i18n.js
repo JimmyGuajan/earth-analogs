@@ -77,6 +77,13 @@ window.I18N = {
       retry: "Intentar de nuevo", back: "Volver al veredicto",
     },
     dl: { title: "Descargar los datos", md: "Ficha del sitio (.md)", csv: "Ranking completo (.csv)" },
+    missionHint: "Cada misión da más peso a unas características, así que cambian el puntaje y el ranking; muchas veces también el sitio ganador.",
+    byMission: {
+      title: n => (n === 1 ? "Mejor sitio según la misión: el mismo en las 7" : `Mejor sitio según la misión: ${n} ganadores distintos`),
+      hint: "Cada misión pesa distinto. Toca una para ver su resultado.",
+      same: s => `${s} gana con las 7 misiones: es un análogo muy completo para este destino. Lo que cambia es su puntaje y el resto del ranking.`,
+      switched: (p, s) => `Con «${p}», el mejor sitio es ${s}.`,
+    },
     guideName: "Comandante Vega",
     guideHide: "Ocultar la guía",
     hatch: { closing: "Escotilla cerrada. Presurización correcta.", opening: "Abriendo escotilla" },
@@ -85,8 +92,8 @@ window.I18N = {
     guide: {
       intro: "Hola, soy Vega, comandante de esta misión. Vamos a buscar en la Tierra el mejor lugar para ensayar un viaje a la Luna o a Marte. Te recomiendo activar el sonido para escucharme. Pulsa «Comenzar misión» cuando quieras.",
       earth: "Toca cualquier punto del planeta. Lo mido en vivo con datos de satélite y te digo a qué lugar de la Luna o de Marte se parece.",
-      crew: "Primero, el registro. Tu nombre va en el parche de la misión y solo se queda en tu navegador.",
-      dest: n => `Te doy la bienvenida a bordo, ${n}. Elige destino: la Luna está a unos 3 días de viaje; Marte, a unos 8 meses.`,
+      crew: "Primero, el registro. Tu nombre va en el parche de la misión y solo se queda en tu navegador. Luego pulsa «Subir a bordo».",
+      dest: n => `Te doy la bienvenida a bordo, ${n}. Elige destino y un sitio, y pulsa «Siguiente». La Luna está a unos 3 días de viaje; Marte, a unos 8 meses.`,
       targets: {
         moon_shackleton: "¿Shackleton? Buen ojo. En sus cráteres en sombra permanente hace menos de 40 K, tanto frío como en Plutón, y ahí se esconde hielo de agua.",
         moon_malapert: "Malapert es un macizo de unos 5 km de altura con la Tierra siempre a la vista: ideal para comunicarse sin cortes.",
@@ -114,7 +121,8 @@ window.I18N = {
       iss: (alt, vel, w) => `Cruzamos la órbita de la Estación Espacial Internacional. Ahora mismo vuela a ${alt} km de altura y ${vel} km/h, sobre ${w}.`,
       reentry: "Iniciamos la reentrada. El escudo térmico supera los 2.500 °C: por eso brilla.",
       touchdown: s => `¡Toque en ${s}! Abro la escotilla.`,
-      outside: s => `Esta es la primera vista de ${s}. Vamos a revisar por qué es el mejor lugar.`,
+      outside: s => `Esta es la primera vista de ${s}. Pulsa «Ver el análisis» para saber por qué es el mejor lugar.`,
+      outsidePlan: "Pulsa «Planear la misión» para elegir qué ensayar en este destino.",
       verdict: (n, s) => `${n}, ${s} es nuestro mejor gemelo. En el panel ves por qué se parece. Arriba hay 6 pestañas: Veredicto, Top 10, Campaña, Mapa global, Evidencia y Escanear. Si es tu primera vez, pulsa «Recorrido guiado» y te las enseño una a una. Al final, supera la «Prueba final» para ganar tu certificado.`,
       tabs: {
         verdict: "Este es el veredicto: por qué se parece y lo que no puede simular.",
@@ -353,6 +361,13 @@ window.I18N = {
       retry: "Try again", back: "Back to the verdict",
     },
     dl: { title: "Download the data", md: "Site card (.md)", csv: "Full ranking (.csv)" },
+    missionHint: "Each mission weighs some characteristics more, so the score and the ranking change; often the winning site does too.",
+    byMission: {
+      title: n => (n === 1 ? "Best site by mission: the same in all 7" : `Best site by mission: ${n} different winners`),
+      hint: "Each mission weighs things differently. Tap one to see its result.",
+      same: s => `${s} wins with all 7 missions: it is a very complete analog for this destination. What changes is its score and the rest of the ranking.`,
+      switched: (p, s) => `With \"${p}\", the best site is ${s}.`,
+    },
     guideName: "Commander Vega",
     guideHide: "Hide the guide",
     hatch: { closing: "Hatch closed. Cabin pressure nominal.", opening: "Opening the hatch" },
@@ -361,8 +376,8 @@ window.I18N = {
     guide: {
       intro: "Hi, I'm Vega, commander of this mission. We are going to find the best place on Earth to rehearse a trip to the Moon or Mars. Turn the sound on to hear me. Press \"Start mission\" whenever you are ready.",
       earth: "Tap any point on the planet. I'll measure it live with satellite data and tell you which place on the Moon or Mars it resembles.",
-      crew: "First, registration. Your name goes on the mission patch and stays only in your browser.",
-      dest: n => `Welcome aboard, ${n}. Pick a destination: the Moon is about 3 days away; Mars, about 8 months.`,
+      crew: "First, registration. Your name goes on the mission patch and stays only in your browser. Then press \"Come aboard\".",
+      dest: n => `Welcome aboard, ${n}. Pick a destination and a site, then press \"Next\". The Moon is about 3 days away; Mars, about 8 months.`,
       targets: {
         moon_shackleton: "Shackleton? Good choice. Its permanently shadowed craters are below 40 K, as cold as Pluto, and water ice hides there.",
         moon_malapert: "Malapert is a massif about 5 km high that always sees Earth: ideal for uninterrupted communications.",
@@ -390,7 +405,8 @@ window.I18N = {
       iss: (alt, vel, w) => `We are crossing the orbit of the International Space Station. Right now it flies ${alt} km up at ${vel} km/h, over ${w}.`,
       reentry: "Starting re-entry. The heat shield goes above 2,500 °C: that is why it glows.",
       touchdown: s => `Touchdown at ${s}! Opening the hatch.`,
-      outside: s => `This is your first look at ${s}. Let's review why it is the best place.`,
+      outside: s => `This is your first look at ${s}. Press \"See the analysis\" to find out why it is the best place.`,
+      outsidePlan: "Press \"Plan the mission\" to choose what to rehearse at this destination.",
       verdict: (n, s) => `${n}, ${s} is our best twin. The panel shows why it matches. Up top there are 6 tabs: Verdict, Top 10, Campaign, Global map, Evidence and Scan. If this is your first time, press \"Guided tour\" and I will show you each one. At the end, pass the \"Final test\" to earn your certificate.`,
       tabs: {
         verdict: "This is the verdict: why it matches and what it cannot simulate.",

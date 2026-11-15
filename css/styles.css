@@ -310,6 +310,10 @@ fieldset.field { border: 0; margin: 0 0 16px; padding: 0; }
 .guide { position: fixed; z-index: 45; right: 24px; bottom: 24px; display: flex; flex-direction: row-reverse; align-items: flex-end; gap: 12px; max-width: min(420px, calc(100vw - 48px)); }
 .guide[hidden] { display: none; }
 body[data-stage="launch"] .guide { right: auto; left: 24px; flex-direction: row; }
+/* the next step glows: a soft ring pulses around the button to press */
+.cue { position: relative; }
+.cue::after { content: ""; position: absolute; inset: -5px; border-radius: inherit; border: 2px solid var(--target); opacity: 0; pointer-events: none; animation: invite 2s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { .cue::after { animation: none; opacity: .7; } }
 /* first look outside: the guide steps aside so the continue button stays clear */
 body.outside-on .guide { left: auto; right: 24px; flex-direction: row-reverse; }
 .outside { cursor: pointer; }
@@ -429,6 +433,15 @@ body.touring .guide { z-index: 55; } /* above the place card the tour opens */
 .game-big span { font-size: 32px; color: var(--muted); }
 .game-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 .ev-dl { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* best site for each mission */
+.bym-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.bym { display: grid; grid-template-columns: 20px minmax(0, 1fr) minmax(0, 1.1fr) 32px; gap: 10px; align-items: center; text-align: left; padding: 8px 10px; border-radius: 10px; border: 1px solid transparent; font-size: 12.5px; }
+.bym:hover { background: var(--surface-2); }
+.bym.on { border-color: var(--target-line); background: var(--target-tint); }
+.bym .icon { color: var(--target); width: 18px; height: 18px; }
+.bym b { font-weight: 600; min-width: 0; overflow-wrap: break-word; }
+.bym .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
 
 /* evidence: one compact table, the source a tap away */
 .ev-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 12px; color: var(--muted); margin: 4px 0 8px; }

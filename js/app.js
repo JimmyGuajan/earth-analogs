@@ -220,7 +220,7 @@
         </div></fieldset>
         <p class="privacy">${C.privacy}</p>
       </div>
-      <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button><button class="btn big" id="crewGo">${C.go}</button></div>`;
+      <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button><button class="btn big cue" id="crewGo">${C.go}</button></div>`;
       const paint = () => Patch.paint($("#patch"), patchOpts());
       requestAnimationFrame(paint);
       $("#crewName").oninput = e => { state.crew.name = e.target.value; paint(); };
@@ -245,7 +245,7 @@
         <p>${I18N_PROFILE_WHY[state.lang][state.profile]}</p>
         <p class="objective">${B.objective(PL(state.profile), esc(short(t.name)))}</p>
       </div>
-      <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button><button class="btn big" id="acceptBtn">${B.accept}</button></div>`;
+      <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button><button class="btn big cue" id="acceptBtn">${B.accept}</button></div>`;
       requestAnimationFrame(() => Patch.paint($("#patch"), patchOpts()));
       $("#backBtn").onclick = () => go("mission");
       $("#acceptBtn").onclick = () => { store.set("flights", store.get("flights", 0) + 1); launch(); };
@@ -258,7 +258,7 @@
         <p class="p-sub">${T().chooseSite}</p>
         <div class="sites">${list.map(t => `<button class="site-btn ${t.id === state.targetId ? "on" : ""}" data-id="${t.id}"><b>${esc(short(t.name))}</b><span>${esc(I18N_TARGET_TAG[state.lang][t.id])}</span></button>`).join("")}</div>
       </div>
-      <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button><button class="btn" id="nextBtn" ${state.targetId ? "" : "disabled"}>${T().next}</button></div>`;
+      <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button><button class="btn ${state.targetId ? "cue" : ""}" id="nextBtn" ${state.targetId ? "" : "disabled"}>${T().next}</button></div>`;
       p.querySelectorAll(".body-btn").forEach(b => (b.onclick = () => { state.body = b.dataset.b; state.targetId = null; showTargetsOnGlobe(); globe.pointOfView({ lat: 0, lng: 0, altitude: 2.4 }, 1000); renderPanel(); }));
       p.querySelectorAll(".site-btn").forEach(b => (b.onclick = () => pickTarget(b.dataset.id)));
       $("#backBtn").onclick = () => go("crew");
@@ -268,10 +268,11 @@
       const t = target();
       p.innerHTML = `<div class="p-body">
         <div class="chosen"><span class="orb ${t.body}" style="width:22px;height:22px;border-radius:50%;display:inline-block"></span><span><b>${esc(short(t.name))}</b> · ${t.body === "Moon" ? T().moon : T().mars}</span></div>
-        <h2 class="p-title" style="margin-bottom:14px">${T().chooseMission}</h2>
+        <h2 class="p-title">${T().chooseMission}</h2>
+        <p class="p-sub">${T().missionHint}</p>
         <div class="missions">${Object.keys(PROFILES).sort((a, b) => recFor(b) - recFor(a)).map(id => `<button class="mission ${id === state.profile ? "on" : ""} ${recFor(id) ? "is-rec" : ""}" data-id="${id}">${icon(id)}${recFor(id) ? `<em class="rec">${T().rec}</em>` : ""}<b>${PL(id)}</b><span>${I18N_PROFILE_DESC[state.lang][id]}</span></button>`).join("")}</div>
       </div>
-      <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button><button class="btn big" id="launchBtn" ${state.profile ? "" : "disabled"}>${T().launch}</button></div>`;
+      <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button><button class="btn big ${state.profile ? "cue" : ""}" id="launchBtn" ${state.profile ? "" : "disabled"}>${T().launch}</button></div>`;
       p.querySelectorAll(".mission").forEach(b => (b.onclick = () => {
         state.profile = b.dataset.id; renderPanel();
         Guide.say(`${PL(b.dataset.id)}. ${I18N_PROFILE_WHY[state.lang][b.dataset.id].split(". ")[0]}.`.replace("..", "."));
@@ -719,6 +720,7 @@
     $("#outGo").textContent = T().outside.plan;
     $("#outside").hidden = false; document.body.classList.add("outside-on");
     await hatchOpen();
+    say(G.outsidePlan);
     $("#outGo").focus();
     await waitButton($("#outGo"));
 
@@ -788,7 +790,7 @@
     const tabs = ["verdict", "top", "camp", "map", "evidence", "scan"];
     p.innerHTML = `<nav class="tabs">${tabs.map(k => `<button data-tab="${k}" class="${k === state.tab ? "on" : ""}">${T().tabs[k]}</button>`).join("")}</nav>
       <div class="p-body" id="tabBody"></div>
-      <div class="p-foot"><button class="btn ghost" id="newBtn">${T().newMission}</button><button class="btn" id="certBtn">${gamePassed() ? T().cert.btn : T().game.start}</button></div>`;
+      <div class="p-foot"><button class="btn ghost" id="newBtn">${T().newMission}</button><button class="btn cue" id="certBtn">${gamePassed() ? T().cert.btn : T().game.start}</button></div>`;
     p.querySelectorAll(".tabs button").forEach(b => (b.onclick = () => {
       const prev = state.tab;
       state.tab = b.dataset.tab; renderVerdictPanel();
@@ -838,6 +840,7 @@
       <div class="sec">${T().cannot}</div>
       <div class="mchips">${gaps.map(k => mchip(k, r.per[k], "bad", `${FL(k)}. ${earthDetail(k, s)}. ${world}: ${targetDetail(k, t)}`)).join("") || "<span class=\"help\">—</span>"}</div>
       <p class="help tip-hint">${T().viz.hint}</p>
+      ${byMissionHtml(t)}
       <div class="sec">${T().viz.title}</div>
       ${profileChart(s.fp, t, r.per, w, s.name.split(" – ")[0])}
       ${fold(`${PROCESSES.text[state.lang].title} (${procCount})`, procHtml)}
@@ -846,6 +849,7 @@
       ${fold(T().viz.dataFold, `<div class="chips">${["NASA POWER", "Copernicus DEM", ...new Set(Object.values(t.prov || {}).filter(p => p.kind === "measured").map(p => PROV(p.text).split(":")[0]))].map(c => `<span class="chip">${esc(c)}</span>`).join("")}</div>`)}`;
     bindTips($("#tabBody"));
     bindRoleTip();
+    bindByMission();
     bindReverse();
     const pb = $("#placeBtn"); if (pb) pb.onclick = () => openPlace(s, t);
   }
@@ -969,6 +973,30 @@
     ask();
   }
   addEventListener("keydown", e => { if (e.key === "Escape" && $("#gameModal") && !$("#gameModal").hidden) $("#gameClose")?.click(); });
+
+  // ---------- does the mission change the answer? the best site for each of the seven ----------
+  function bestByMission(t) {
+    const pool = state.origin ? CURATED.concat(state.origin) : CURATED;
+    return Object.keys(PROFILES).map(p => {
+      const w = TW.profileWeights(p);
+      const best = pool.map(s => ({ s, ...TW.compare(s.fp, t, w) })).sort((a, b) => b.score - a.score)[0];
+      return { p, site: best.s, score: best.score };
+    });
+  }
+  function byMissionHtml(t) {
+    const B = T().byMission, rows = bestByMission(t), n = new Set(rows.map(r => r.site.id)).size;
+    const list = rows.map(r => `<button class="bym ${r.p === state.profile ? "on" : ""}" data-p="${r.p}">${icon(r.p)}<span>${PL(r.p)}</span><b>${esc(r.site.name.split(" – ")[0])}</b><span class="v">${Math.round(r.score)}</span></button>`).join("");
+    return `<details class="fold"><summary>${B.title(n)}</summary><p class="help">${n === 1 ? B.same(esc(rows[0].site.name.split(" – ")[0])) : B.hint}</p><div class="bym-list">${list}</div></details>`;
+  }
+  function bindByMission() {
+    document.querySelectorAll("#tabBody .bym").forEach(b => (b.onclick = () => {
+      if (b.dataset.p === state.profile) return;
+      state.profile = b.dataset.p; state.mode = "match";
+      const res = rank(); state.selectedId = res[0].site.id;
+      renderVerdictPanel(); showEarthResults(res, true); writeHash();
+      Guide.say(T().byMission.switched(PL(state.profile), res[0].site.name.split(" – ")[0]));
+    }));
+  }
 
   // ---------- roles: each one is steered to the missions and numbers it cares about ----------
   const ROLE_PROFILES = { cmd: ["balanced"], geo: ["astrobio", "caves"], eng: ["habitat", "mobility"] };
@@ -1490,7 +1518,7 @@
     }
     $("#panel").innerHTML = `<div class="p-body"><h2 class="p-title">${E.title}</h2><p class="p-sub">${E.help}</p>${body}</div>
       <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button>${best && !state.scanBusy
-        ? `<button class="btn big" id="travelBtn">${E.travel(esc(short(best.t.name)))}</button>`
+        ? `<button class="btn big cue" id="travelBtn">${E.travel(esc(short(best.t.name)))}</button>`
         : `<button class="btn" id="toMission">${E.toMission}</button>`}</div>`;
     $("#backBtn").onclick = goHome;
     const tb = $("#travelBtn"); if (tb) tb.onclick = () => outbound(sc, best.t);
