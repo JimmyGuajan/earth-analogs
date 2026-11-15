@@ -27,7 +27,11 @@ Earth Analogs turns every place (an Earth site, a Moon or Mars landing site, or 
    - **Evidence**: the source of every number.
    - **Scan**: click any point on the planet to fingerprint it live.
 
-The interface is available in Spanish and English. Mission sounds are synthesised in the browser with Web Audio (no audio files) and are off until you turn them on.
+**Start from Earth.** Tap any point (or a catalog site): the app measures it live and tells you which Moon or Mars site it resembles. **Fly to it**: you board at your own place, lift off from Earth, cruise with today's real distance, land (powered descent on the Moon, entry and parachutes on Mars) and open the hatch on the destination's orbital view. Then you pick a mission and the app finds the best place on Earth to rehearse it, which may be yours.
+
+**Colours follow the world on screen**: the globe's halo and the glow of space turn silver at the Moon, rust at Mars and blue back on Earth.
+
+The interface is available in Spanish and English, including the site names, notes, countries and evidence lines that live in the data files (`js/i18n-data.js`). Quotes from sources (geologic map unit names, photo credits, English-only Wikipedia summaries) stay as written. Mission sounds are synthesised in the browser with Web Audio (no audio files) and are off until you turn them on.
 
 ## What makes it different
 | Idea | What it does |
@@ -116,6 +120,7 @@ js/patch.js              mission patch and certificate (canvas)
 js/sound.js              mission sounds (Web Audio, off by default)
 js/guide.js              Commander Vega, the guide (speech bubble + optional voice)
 js/astro.js              today's Earth–Moon and Earth–Mars distances
+js/i18n-data.js          Spanish names, notes, countries and evidence lines for the data
 js/data.js               generated dataset (45 Earth sites + 9 targets)
 assets/                  globe textures (NASA GIBS Blue Marble, LRO WAC, Viking MDIM 2.1)
 data/earth_sites.json    curated Earth catalog (terrain axes, usage, access)

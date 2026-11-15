@@ -40,10 +40,19 @@
   const roleLabel = () => (T().crew.roles[state.crew.role] || T().crew.roles.cmd)[0];
   const missionCode = () => `EA-${CODE_T[state.targetId] || "XXX"}-${CODE_P[state.profile] || "GEN"}-${String(store.get("flights", 0) + 1).padStart(2, "0")}`;
   CURATED.forEach(s => (s.fp = TW.fingerprint(s)));
+  // names follow the language: proper names stay, English descriptors are translated (js/i18n-data.js)
+  [...CURATED, ...TARGETS].forEach(x => (x.name_en = x.name));
+  function applyNames() { [...CURATED, ...TARGETS].forEach(x => (x.name = (state.lang === "es" && I18N_DATA.name.es[x.id]) || x.name_en)); }
+  applyNames();
 
   const T = () => I18N[state.lang];
   const FL = k => I18N_FEATURES[state.lang][k];
   const PL = id => I18N_PROFILES[state.lang][id];
+  // text that lives in the data files, in the viewer's language (see js/i18n-data.js)
+  const CTRY = c => (state.lang === "es" && I18N_DATA.country.es[c]) || c;
+  const NOTE = s => (state.lang === "es" && I18N_DATA.note.es[s.id]) || s.note;
+  const PROV = txt => (state.lang === "es" ? I18N_DATA.prov.es.reduce((t, [re, rep]) => t.replace(re, rep), txt) : txt);
+  const dec = (v, d) => (v == null ? "" : v.toLocaleString(state.lang === "es" ? "es-EC" : "en-US", { minimumFractionDigits: d, maximumFractionDigits: d }));
   const target = () => TARGETS.find(t => t.id === state.targetId);
   const short = n => n.split(" (")[0];
   const allSites = () => (state.scan ? CURATED.concat(state.scan) : CURATED);
@@ -94,7 +103,13 @@
   const ctl = globe.controls();
   ctl.autoRotate = true; ctl.autoRotateSpeed = 0.35; ctl.enableDamping = true;
   let currentTex = "Earth";
-  function setTexture(body) { if (currentTex !== body) { globe.globeImageUrl(TEX[body]); currentTex = body; } }
+  document.body.dataset.world = "Earth";
+  // the colours follow the world on screen: the globe's halo and the space around it
+  const HALO = { Earth: ["#7aa2ff", 0.16], Moon: ["#c9d3f5", 0.1], Mars: ["#ff9a6b", 0.14] };
+  function setTexture(body) {
+    document.body.dataset.world = body;
+    if (currentTex !== body) { globe.globeImageUrl(TEX[body]).atmosphereColor(HALO[body][0]).atmosphereAltitude(HALO[body][1]); currentTex = body; }
+  }
 
   function layoutGlobe() {
     let left = 0, height = innerHeight;
@@ -132,7 +147,7 @@
     globe.pointsData(results.map(r => {
       const s = r.site, on = s.id === state.selectedId;
       return { lat: s.lat, lng: s.lon, alt: 0.01 + 0.28 * TW.clamp((r.score - lo) / (hi - lo || 1)) ** 1.5, r: on ? 0.75 : 0.42,
-        color: on ? "#ff9b47" : scoreColor(r.score, lo, hi), label: `<b>${esc(s.name)}</b><br>${T().twinScore}: ${r.score.toFixed(1)}`,
+        color: on ? "#ff9b47" : scoreColor(r.score, lo, hi), label: `<b>${esc(s.name)}</b><br>${T().twinScore}: ${dec(r.score, 1)}`,
         onClick: () => selectSite(s.id) };
     }));
     const sel = allSites().find(s => s.id === state.selectedId) || win;
@@ -150,6 +165,8 @@
     $("#soundBtn span").textContent = SFX.on ? T().soundOn : T().soundOff;
     $("#soundBtn").setAttribute("aria-pressed", String(SFX.on));
     $("#guideX").setAttribute("aria-label", T().guideHide);
+    $("#guideSound").hidden = SFX.on; $("#guideSound").textContent = T().soundAsk;
+    $("#homeBtn").title = state.lang === "es" ? "Inicio" : "Home";
     $("#progress").innerHTML = T().steps.map((s, i) => `<li class="${i === idx ? "on" : i < idx ? "done" : ""}"><i>${i < idx ? "✓" : i + 1}</i><span>${s}</span></li>`).join("");
     document.body.dataset.stage = state.stage;
   }
@@ -437,7 +454,9 @@
   }
 
   async function launch() {
-    const t = target(), w = weights(), G = T().guide, H = T().hud, L = T().log;
+    const t = target(), w = weights();
+    const now = name => new Proxy({}, { get: (_, k) => T()[name][k] }); // follows a language switch mid-flight
+    const G = now("guide"), H = now("hud"), L = now("log");
     state.mode = "match"; state.tab = "verdict"; state.scan = null;
     state.code = state.code || missionCode();
     const results = rank("match", CURATED), win = results[0].site, siteShort = win.name.split(" – ")[0];
@@ -465,7 +484,7 @@
     await typeLine(`<span class="k">${L.target(esc(short(t.name)))}</span>`);
     await typeLine(L.crew(esc(crewName()), esc(roleLabel())));
     const prov = t.prov || {};
-    for (const k of ["relief", "ice", "light"]) if (prov[k]?.kind === "measured") await typeLine(esc(prov[k].text));
+    for (const k of ["relief", "ice", "light"]) if (prov[k]?.kind === "measured") await typeLine(esc(PROV(prov[k].text)));
     await typeLine(L.profile(PL(state.profile)));
     await pollSystems(win);
     await countdown();
@@ -495,7 +514,7 @@
         await typeLine(L.compare(KEYS.filter(k => w[k] > 0).length, CURATED.length));
         showEarthResults(results, false);
         globe.htmlElementsData([]).ringsData([]);
-        await typeLine(`<span class="ok">${L.best(esc(win.name), results[0].score.toFixed(1))}</span>`);
+        await typeLine(`<span class="ok">${L.best(esc(win.name), dec(results[0].score, 1))}</span>`);
       })(),
       (async () => { // the real Earth through the window
         await pause(4800);
@@ -569,6 +588,111 @@
     writeHash();
   }
 
+  // ---------- outbound journey: from a place on Earth to its Moon or Mars twin ----------
+  const joinList = xs => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} ${state.lang === "es" ? "y" : "and"} ${xs[xs.length - 1]}`);
+  async function outbound(site, t) {
+    const now = name => new Proxy({}, { get: (_, k) => T()[name][k] });
+    const G = now("guide"), H = now("hud"), L = now("log");
+    if (state.peek) unpeek(false);
+    const tName = short(t.name);
+    let sName = site.name.split(" – ")[0];
+    const match = TW.compare(site.fp, t, TW.profileWeights("balanced"));
+    state.targetId = t.id; state.body = t.body; state.profile = null; state.code = missionCode();
+    let onSkip; const skipP = new Promise(r => (onSkip = r));
+    run = { skipped: false, waits: [], anims: [], onSkip, skipP };
+    if (site.scanned) { // a clicked point: "your place", with the region's name when the lookup answers
+      const where = await within(placeName(+site.lat.toFixed(1), +site.lon.toFixed(1)), 1500);
+      sName = where ? `${G.yourPlace} (${where})` : G.yourPlace;
+    }
+    const moon = t.body === "Moon";
+    const D0 = moon ? Astro.moonKm() : Astro.marsKm(), PATH = moon ? D0 : Astro.HOHMANN_KM;
+    const V0 = 11, V1 = moon ? 1.5 : 2.6, DAYS = moon ? 3 : 259; // km/s relative to Earth, leaving at escape speed
+
+    // boarding at the scanned place
+    $("#skipBtn").textContent = T().skip; $("#skipBtn").hidden = false;
+    say(G.boarding);
+    await hatchClose(T().hatch.closing, 1700);
+    go("launch");
+    $("#cockpit").classList.add("on");
+    clearLayers(); setTexture("Earth"); ctl.autoRotate = false;
+    globe.htmlElementsData([{ lat: site.lat, lng: site.lon, alt: 0.02, el: labelEl(sName, "win") }]).ringsData([{ lat: site.lat, lng: site.lon }]);
+    globe.pointOfView({ lat: site.lat, lng: site.lon, altitude: 1.2 }, 0);
+    $("#termBody").innerHTML = ""; $("#termCode").textContent = state.code; $("#terminal").hidden = false;
+    await hatchOpen();
+    say(G.poll);
+    await typeLine(`<span class="k">${L.from(esc(sName))}</span>`);
+    await typeLine(L.to(esc(tName), Math.round(match.score)));
+    await typeLine(L.crew(esc(crewName()), esc(roleLabel())));
+    await pollSystems(site);
+    await countdown();
+
+    // lift-off from Earth and cruise to the twin
+    say(G.liftoffOut(tName));
+    const ship = $("#ship");
+    await flyShip(globeCenter(), { x: innerWidth + 80, y: -80 }, 45, [0.6, 1.4], 1300);
+    $("#flash").classList.add("on"); await pause(350);
+    clearLayers(); setTexture(t.body);
+    globe.pointOfView({ lat: t.lat, lng: t.lon - 70, altitude: 7 }, 0);
+    $("#flash").classList.remove("on");
+    warp(true); sfx(() => SFX.humStart());
+    hud(true, { phase: H.outbound(t.body), crew: `${crewName()}, ${roleLabel()}`, labels: [H.distTarget, H.speed, H.travelled, H.time], note: moon ? H.noteMoon : H.noteMars, k: 0 });
+    say(moon ? G.cruiseOutMoon(nf(D0)) : G.cruiseOutMars(nf(D0 / 1e6, 1)));
+    const CRUISE = 9000;
+    globe.pointOfView({ lat: t.lat, lng: t.lon - 20, altitude: 2.4 }, reduced() || run.skipped ? 0 : CRUISE);
+    await tween(CRUISE, k => hud(true, { k, values: [
+      `${nf(D0 * (1 - k))} km`, `${nf((V0 + (V1 - V0) * Math.sqrt(k)) * 3600)} km/h`, `${nf(PATH * k)} km`, H.day(Math.max(1, Math.round(1 + (DAYS - 1) * k))),
+    ] }));
+
+    // landing on the twin: powered descent on the Moon, entry and parachutes on Mars
+    warp(false); SFX.humStop();
+    const ENTRY = 4200, phases = H.landPhases[t.body];
+    if (!moon && !run.skipped) { $("#plasma").classList.add("on"); sfx(() => SFX.reentry(4)); }
+    hud(true, { phase: H.landing(tName), labels: [H.alt, H.speed, H.phase, ""], note: "", k: 0 });
+    globe.pointOfView({ lat: Math.abs(t.lat) > 80 ? Math.sign(t.lat) * 78 : t.lat, lng: t.lon, altitude: 0.6 }, reduced() || run.skipped ? 0 : ENTRY);
+    await Promise.all([
+      flyShip({ x: innerWidth + 80, y: -80 }, globeCenter(), 225, [1.4, 0.35], ENTRY),
+      tween(ENTRY, k => {
+        if (k > 0.55) $("#plasma").classList.remove("on");
+        const ph = k < 0.3 ? 0 : k < 0.65 ? 1 : k < 0.97 ? 2 : 3;
+        hud(true, { k, values: [`${nf(100 * (1 - k) ** 1.6, 1)} km`, `${nf(V1 * 3600 * (1 - k) ** 2)} km/h`, phases[ph], ""] });
+      }),
+    ]);
+    $("#plasma").classList.remove("on");
+    track(ship.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: "forwards" }));
+    globe.htmlElementsData([{ lat: t.lat, lng: t.lon, alt: 0.02, el: landerEl() }, { lat: t.lat, lng: t.lon, alt: 0.02, el: labelEl(tName, "win") }])
+      .ringsData([{ lat: t.lat, lng: t.lon }]);
+    hud(false); $("#terminal").hidden = true;
+    const td = $("#touchdown");
+    td.innerHTML = `<h2>${esc(T().arrival(tName))}</h2>`;
+    td.hidden = false; sfx(() => SFX.touchdown());
+    const shared = KEYS.filter(k => match.per[k] != null && t[k] >= 0.3 && match.per[k] >= 0.75)
+      .sort((a, b) => match.per[b] - match.per[a]).slice(0, 3).map(k => FL(k).charAt(0).toLowerCase() + FL(k).slice(1));
+    say(G.arrive(tName, sName, joinList(shared)));
+    await pause(3800);
+    td.hidden = true;
+
+    // the hatch opens on the orbital view of the twin
+    await hatchClose(T().hatch.opening, 1100);
+    $("#cockpit").classList.remove("on");
+    $("#outside img")?.remove();
+    const img = new Image(); img.src = `assets/views/target/${t.id}.jpg`; img.alt = t.name;
+    $("#outside").prepend(img);
+    $("#outTitle").textContent = T().outside.title(tName);
+    $("#outCap").textContent = T().outside.orbital(t.body);
+    $("#outGo").textContent = T().outside.plan;
+    $("#outside").hidden = false;
+    await hatchOpen();
+    await waitButton($("#outGo"), 9000);
+
+    // next: pick the mission to rehearse at this destination
+    endJourney(); run = null;
+    state.scan = null;
+    go("mission");
+    showTargetsOnGlobe();
+    globe.pointOfView({ lat: Math.abs(t.lat) > 80 ? Math.sign(t.lat) * 70 : t.lat, lng: t.lon, altitude: 1.5 }, 1000);
+    Guide.say(T().guide.next(tName));
+  }
+
   // ---------- verdict + tabs ----------
   function selectSite(id) {
     state.selectedId = id; state.tab = "verdict";
@@ -580,20 +704,20 @@
     const pw = s.power || {}, es = state.lang === "es";
     const clim = TW.climateFromPower(pw, s.elev);
     switch (k) {
-      case "aridity": return pw.precip == null ? "" : `${(pw.precip * 365).toFixed(0)} mm/${es ? "año" : "yr"} · HR ${pw.rh?.toFixed(0)}% · NASA POWER`;
-      case "cold": return pw.t2m == null ? "" : `${es ? "T media" : "Mean T"} ${pw.t2m.toFixed(1)} °C · NASA POWER`;
-      case "swing": return pw.t2m_range == null ? "" : `Δ ${es ? "diaria" : "daily"} ${pw.t2m_range.toFixed(1)} °C · NASA POWER`;
-      case "thin_air": return clim._ps == null ? "" : `${clim._ps.toFixed(1)} kPa · ${Math.round(s.elev ?? 0)} m · NASA POWER + DEM`;
-      case "radiation": return pw.sw == null ? "" : `${pw.sw.toFixed(1)} kWh/m²/d · UV ${pw.uv?.toFixed(1)} · NASA POWER`;
-      case "light": return pw.sw_min == null ? "" : `${es ? "mes oscuro/brillante" : "dark/bright month"} ${(pw.sw_min / pw.sw_max).toFixed(2)} · NASA POWER`;
+      case "aridity": return pw.precip == null ? "" : `${dec((pw.precip * 365), 0)} mm/${es ? "año" : "yr"} · HR ${dec(pw.rh, 0)}% · NASA POWER`;
+      case "cold": return pw.t2m == null ? "" : `${es ? "T media" : "Mean T"} ${dec(pw.t2m, 1)} °C · NASA POWER`;
+      case "swing": return pw.t2m_range == null ? "" : `Δ ${es ? "diaria" : "daily"} ${dec(pw.t2m_range, 1)} °C · NASA POWER`;
+      case "thin_air": return clim._ps == null ? "" : `${dec(clim._ps, 1)} kPa · ${Math.round(s.elev ?? 0)} m · NASA POWER + DEM`;
+      case "radiation": return pw.sw == null ? "" : `${dec(pw.sw, 1)} kWh/m²/d · UV ${dec(pw.uv, 1)} · NASA POWER`;
+      case "light": return pw.sw_min == null ? "" : `${es ? "mes oscuro/brillante" : "dark/bright month"} ${dec((pw.sw_min / pw.sw_max), 2)} · NASA POWER`;
       case "relief": return s.relief_m == null ? "" : `${Math.round(s.relief_m)} m ${es ? "en 15 km" : "within 15 km"} · Copernicus DEM`;
-      case "barren": if (s.ndvi != null) return `NDVI ${s.ndvi.toFixed(2)} · MODIS MOD13Q1 (ORNL DAAC)`; break;
+      case "barren": if (s.ndvi != null) return `NDVI ${dec(s.ndvi, 2)} · MODIS MOD13Q1 (ORNL DAAC)`; break;
     }
     const g = s.geo || {}, pct = v => `${Math.round(v * 100)}%`;
     if (s.geo_kind?.[k]) switch (k) {
       case "basalt": case "salts": {
         const m = g.macrostrat;
-        return `${es ? "Mapa geológico" : "Geologic map"}: “${m.unit}” · ${es ? "puntaje medio" : "mean score"} ${m[k].toFixed(2)} ${es ? "en" : "over"} ${m[`${k}_n`]} ${es ? "puntos en 15 km" : "points within 15 km"} · Macrostrat`;
+        return `${es ? "Mapa geológico" : "Geologic map"}: “${m.unit}” · ${es ? "puntaje medio" : "mean score"} ${dec(m[k], 2)} ${es ? "en" : "over"} ${m[`${k}_n`]} ${es ? "puntos en 15 km" : "points within 15 km"} · Macrostrat`;
       }
       case "sediment": {
         const m = g.macrostrat, w = g.gsw;
@@ -601,15 +725,15 @@
       }
       case "ice": {
         const t = g.lst, wc = g.worldcover;
-        return `${es ? "T superficial media" : "Mean surface T"} ${t.lst_mean_c.toFixed(1)} °C · MODIS MOD11A2 ${LST_YEAR}` + (wc && wc.snow_ice > 0 ? ` · ${es ? "hielo/nieve permanente" : "permanent snow/ice"} ${pct(wc.snow_ice)} (ESA WorldCover)` : "");
+        return `${es ? "T superficial media" : "Mean surface T"} ${dec(t.lst_mean_c, 1)} °C · MODIS MOD11A2 ${LST_YEAR}` + (wc && wc.snow_ice > 0 ? ` · ${es ? "hielo/nieve permanente" : "permanent snow/ice"} ${pct(wc.snow_ice)} (ESA WorldCover)` : "");
       }
-      case "regolith": return `${es ? "Radar banda L" : "L-band radar"} HV ${g.palsar.hv_db.toFixed(1)} dB (${es ? "oscuro = fino y suelto" : "dark = fine and loose"}) · ALOS PALSAR (JAXA)`;
+      case "regolith": return `${es ? "Radar banda L" : "L-band radar"} HV ${dec(g.palsar.hv_db, 1)} dB (${es ? "oscuro = fino y suelto" : "dark = fine and loose"}) · ALOS PALSAR (JAXA)`;
     }
     return s.scanned ? (es ? "sin datos: requiere campo" : "no data: needs fieldwork") : (es ? "estimado de literatura geológica" : "estimate from geologic literature");
   }
   function targetDetail(k, t) {
     const p = t.prov?.[k];
-    return p ? p.text : (state.lang === "es" ? "literatura de la misión" : "mission literature");
+    return p ? PROV(p.text) : (state.lang === "es" ? "literatura de la misión" : "mission literature");
   }
 
   function ring(score) {
@@ -659,14 +783,14 @@
       : `#${pos} ${T().of} ${results.length} · ${esc(short(t.name))} · ${PL(state.profile)}`;
     $("#tabBody").innerHTML = `
       <p class="lead">${lead}</p>
-      <div class="winner">${ring(r.score)}<div><h2>${esc(s.name)}</h2><div class="country">${esc(s.country)} ${usage}</div></div></div>
+      <div class="winner">${ring(r.score)}<div><h2>${esc(s.name)}</h2><div class="country">${esc(CTRY(s.country))} ${usage}</div></div></div>
       ${s.scanned ? "" : `<button class="btn place-btn" id="placeBtn">${T().place.btn}</button>`}
       <div class="sec">${T().why}</div>
       <ul class="reasons">${reasons.map(k => `<li><span><b>${FL(k)}</b><small>${esc(earthDetail(k, s))}</small><small>${t.body === "Moon" ? T().moon : T().mars}: ${esc(targetDetail(k, t))}</small></span><span class="pct" style="color:${matchColor(r.per[k])}">${Math.round(r.per[k] * 100)}%</span></li>`).join("") || "<li>—</li>"}</ul>
       <div class="sec">${T().cannot}</div>
       <ul class="reasons bad">${gaps.map(k => `<li><span><b>${FL(k)}</b><small>${esc(earthDetail(k, s))}</small></span><span class="pct" style="color:${matchColor(r.per[k])}">${Math.round(r.per[k] * 100)}%</span></li>`).join("") || "<li>—</li>"}</ul>
       <div class="radar-wrap"><canvas id="radar"></canvas></div>
-      ${s.note ? `<p class="note">${esc(s.note)}</p>` : ""}
+      ${s.note ? `<p class="note">${esc(NOTE(s))}</p>` : ""}
       ${reverseHtml(s)}
       <div class="sec">${T().dataUsed}</div>
       <div class="chips">${["NASA POWER", "Copernicus DEM", ...new Set(Object.values(t.prov || {}).filter(p => p.kind === "measured").map(p => p.text.split(":")[0]))].map(c => `<span class="chip">${esc(c)}</span>`).join("")}</div>`;
@@ -696,7 +820,7 @@
       <p class="help">${T().modeHelp[state.mode]}</p>
       <ol class="rank">${results.slice(0, 10).map(r => {
         const s = r.site, b = s.scanned ? "" : s.usage <= 0.2 ? `<span class="badge new">${T().newCandidate}</span>` : "";
-        return `<li data-id="${s.id}" class="${s.id === state.selectedId ? "on" : ""}"><div><b>${esc(s.name)}${b}</b><small>${esc(s.country)}</small>
+        return `<li data-id="${s.id}" class="${s.id === state.selectedId ? "on" : ""}"><div><b>${esc(s.name)}${b}</b><small>${esc(CTRY(s.country))}</small>
           <div class="bar"><i style="width:${TW.clamp(r.value / 80) * 100}%;background:${scoreColor(r.score, lo, hi)}"></i></div></div><span class="v">${r.value.toFixed(0)}</span></li>`;
       }).join("")}</ol>
       <button class="btn ghost" id="csvBtn" style="margin-top:10px">${T().csv}</button>`;
@@ -728,7 +852,7 @@
     KEYS.forEach(k => { const o = camp.owner[k]; if (o.site && w[k] > 0 && o.value >= 0.7 && t[k] >= 0.3) roles.get(o.site).push(k); });
     $("#tabBody").innerHTML = `<h2 class="p-title">${T().campTitle}</h2>
       <p class="p-sub">${T().campLead(camp.coverage.toFixed(0), singleCov.toFixed(0))}</p>
-      <div class="camp">${camp.chosen.map((c, i) => `<div><b>${i + 1}. ${esc(c.site.name)}</b><small>${esc(c.site.country)} · ${c.score.toFixed(0)}/100</small>
+      <div class="camp">${camp.chosen.map((c, i) => `<div><b>${i + 1}. ${esc(c.site.name)}</b><small>${esc(CTRY(c.site.country))} · ${c.score.toFixed(0)}/100</small>
         <small>${T().covers}: ${roles.get(c).map(k => FL(k)).join(", ") || "—"}</small></div>`).join("")}</div>
       <div class="covbars">${KEYS.filter(k => w[k] > 0).map(k => { const v = camp.owner[k].value; return `<div class="row"><span>${FL(k)}</span><div class="track"><i style="width:${v * 100}%;background:${matchColor(v)}"></i></div><span>${Math.round(v * 100)}</span></div>`; }).join("")}</div>
       <p class="foot-note">${T().beyond}</p>`;
@@ -741,9 +865,9 @@
     const earthKind = k => s.geo_kind?.[k] || (CLIMATE_KEYS.includes(k) || k === "relief" || (k === "barren" && s.ndvi != null) ? "measured" : "literature");
     $("#tabBody").innerHTML = `<h2 class="p-title">${T().evTitle}</h2>
       <div class="sec">${T().evTarget}: ${esc(short(t.name))}</div>
-      <table class="ev">${KEYS.map(k => `<tr><td>${FL(k)}</td><td><span class="badge ${kindOf(k)}">${T().kinds[kindOf(k)]}</span><div class="src">${esc(targetDetail(k, t))}</div></td><td class="v">${t[k].toFixed(2)}</td></tr>`).join("")}</table>
+      <table class="ev">${KEYS.map(k => `<tr><td>${FL(k)}</td><td><span class="badge ${kindOf(k)}">${T().kinds[kindOf(k)]}</span><div class="src">${esc(targetDetail(k, t))}</div></td><td class="v">${dec(t[k], 2)}</td></tr>`).join("")}</table>
       <div class="sec">${T().evEarth}: ${esc(s.name)}</div>
-      <table class="ev">${KEYS.map(k => `<tr><td>${FL(k)}</td><td><span class="badge ${earthKind(k)}">${T().kinds[earthKind(k)]}</span><div class="src">${esc(earthDetail(k, s))}</div></td><td class="v">${s.fp[k] == null ? "?" : s.fp[k].toFixed(2)}</td></tr>`).join("")}</table>
+      <table class="ev">${KEYS.map(k => `<tr><td>${FL(k)}</td><td><span class="badge ${earthKind(k)}">${T().kinds[earthKind(k)]}</span><div class="src">${esc(earthDetail(k, s))}</div></td><td class="v">${s.fp[k] == null ? "?" : dec(s.fp[k], 2)}</td></tr>`).join("")}</table>
       <p class="foot-note">${T().beyond}<br>Dataset: ${esc(generated)}</p>`;
   }
 
@@ -964,20 +1088,23 @@
   function renderEarthPanel() {
     const sc = state.scan, E = T().earth;
     let body = `<p class="help">${E.pick}</p>`;
+    const best = sc ? reverseTwins(sc)[0] : null;
     if (state.scanBusy) body = `<div class="scanbox busy">${T().scanning}</div>`;
     else if (sc) {
-      const best = reverseTwins(sc)[0];
-      body = `<div class="scanbox"><b>${esc(sc.name)}</b><br><small class="help">${esc(sc.country)}${sc.elev != null ? ` · ${Math.round(sc.elev)} m` : ""}</small>
+      body = `<div class="scanbox"><b>${esc(sc.name)}</b><br><small class="help">${esc(CTRY(sc.country))}${sc.elev != null ? ` · ${Math.round(sc.elev)} m` : ""}</small>
         ${sc.scanned ? "" : `<button class="btn place-btn" id="placeBtn">${T().place.btn}</button>`}
         ${reverseHtml(sc)}
         <div class="radar-wrap"><canvas id="radar"></canvas></div></div>`;
       setTimeout(() => { if ($("#radar")) drawRadar(sc, best.t); }, 0);
     }
     $("#panel").innerHTML = `<div class="p-body"><h2 class="p-title">${E.title}</h2><p class="p-sub">${E.help}</p>${body}</div>
-      <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button><button class="btn" id="toMission">${E.toMission}</button></div>`;
+      <div class="p-foot"><button class="btn ghost" id="backBtn">${T().back}</button>${best && !state.scanBusy
+        ? `<button class="btn big" id="travelBtn">${E.travel(esc(short(best.t.name)))}</button>`
+        : `<button class="btn" id="toMission">${E.toMission}</button>`}</div>`;
     $("#backBtn").onclick = goHome;
+    const tb = $("#travelBtn"); if (tb) tb.onclick = () => outbound(sc, best.t);
     const pb = $("#placeBtn"); if (pb && sc) pb.onclick = () => openPlace(sc, reverseTwins(sc)[0].t);
-    $("#toMission").onclick = () => {
+    if ($("#toMission")) $("#toMission").onclick = () => {
       const t = sc ? reverseTwins(sc)[0].t : TARGETS[0];
       if (state.peek) unpeek(false);
       state.scan = null; go("dest"); pickTarget(t.id);
@@ -1092,15 +1219,15 @@
     let m = $("#placeModal");
     if (!m) { m = document.createElement("div"); m.id = "placeModal"; m.className = "modal"; document.body.appendChild(m); }
     m.innerHTML = `<div class="modal-card" role="dialog" aria-modal="true" aria-label="${esc(P.title)}">
-      <header class="modal-head"><div><small>${P.title}</small><h2>${esc(site.name)}</h2><span class="help">${esc(site.country)}</span></div>
+      <header class="modal-head"><div><small>${P.title}</small><h2>${esc(site.name)}</h2><span class="help">${esc(CTRY(site.country))}</span></div>
         <button class="modal-x" id="placeClose" aria-label="${P.close}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
       <div class="modal-body">
         <div class="place-top">
           ${ph ? `<figure class="photo"><img src="${esc(ph.src)}" alt="${esc(site.name)}" loading="lazy">
             <figcaption>${P.photo}: ${esc(ph.author)} · ${esc(ph.license)} · <a href="${esc(ph.page)}" target="_blank" rel="noopener">Wikimedia Commons</a></figcaption></figure>`
             : `<p class="help">${P.noPhoto}</p>`}
-          <div class="wiki">${txt ? `<p>${esc(txt.extract)}</p><a href="${esc(txt.url)}" target="_blank" rel="noopener">${P.read}</a><small>${P.textCredit}</small>` : `<p class="help">${P.noText}</p>`}
-            ${site.note ? `<p class="note">${esc(site.note)}</p>` : ""}</div>
+          <div class="wiki">${txt ? `<p>${esc(txt.extract)}</p><a href="${esc(txt.url)}" target="_blank" rel="noopener">${P.read}</a><small>${P.textCredit}${state.lang === "es" && !w.es ? ". Este lugar no tiene artículo en español: el resumen está en inglés." : ""}</small>` : `<p class="help">${P.noText}</p>`}
+            ${site.note ? `<p class="note">${esc(NOTE(site))}</p>` : ""}</div>
         </div>
         <div class="sec">${P.compare(esc(site.name.split(" – ")[0]), esc(short(t.name)))}</div>
         <div class="cmp" id="cmp" style="--pos:50%">
@@ -1141,14 +1268,14 @@
   function exportCard(r) {
     const s = r.site, t = target();
     const md = `# Earth Analogs – ${s.name}
-**${T().twinScore}:** ${r.score.toFixed(1)}/100 · ${short(t.name)} (${t.body}) · ${PL(state.profile)}
-**${s.country}** · ${s.lat.toFixed(4)}, ${s.lon.toFixed(4)} · ${s.elev == null ? "" : Math.round(s.elev) + " m"}
+**${T().twinScore}:** ${dec(r.score, 1)}/100 · ${short(t.name)} (${t.body}) · ${PL(state.profile)}
+**${CTRY(s.country)}** · ${s.lat.toFixed(4)}, ${s.lon.toFixed(4)} · ${s.elev == null ? "" : Math.round(s.elev) + " m"}
 
 | Axis | Earth | Earth data | Target | Target data | Match |
 |---|---|---|---|---|---|
-${KEYS.map(k => `| ${FL(k)} | ${s.fp[k] == null ? "?" : s.fp[k].toFixed(2)} | ${earthDetail(k, s)} | ${t[k].toFixed(2)} | ${targetDetail(k, t)} | ${r.per[k] == null ? "?" : Math.round(r.per[k] * 100) + "%"} |`).join("\n")}
+${KEYS.map(k => `| ${FL(k)} | ${s.fp[k] == null ? "?" : dec(s.fp[k], 2)} | ${earthDetail(k, s)} | ${dec(t[k], 2)} | ${targetDetail(k, t)} | ${r.per[k] == null ? "?" : Math.round(r.per[k] * 100) + "%"} |`).join("\n")}
 
-${s.note || ""}
+${NOTE(s) || ""}
 
 ${T().beyond}
 
@@ -1170,7 +1297,7 @@ _Earth Analogs · NASA Space Apps 2026 · ${new Date().toISOString().slice(0, 10
       patch: { name: crewName(), code, body: t.body },
       statement: C.statement(PL(state.profile), short(t.name)),
       rows: [[C.code, code], [C.target, `${short(t.name)}, ${t.body === "Moon" ? T().moon : T().mars}`], [C.mission, PL(state.profile)],
-        [C.twin, `${s.name}, ${s.country}`], [C.score, `${r.score.toFixed(1)} / 100`], [C.date, new Date().toLocaleDateString(state.lang)]],
+        [C.twin, `${s.name}, ${CTRY(s.country)}`], [C.score, `${dec(r.score, 1)} / 100`], [C.date, new Date().toLocaleDateString(state.lang)]],
       footer: C.footer,
     });
     downloadBlob(`earth-analogs_${code}.png`, blob);
@@ -1189,13 +1316,14 @@ _Earth Analogs · NASA Space Apps 2026 · ${new Date().toISOString().slice(0, 10
 
   // ---------- boot ----------
   $("#startBtn").onclick = () => go("crew");
+  $("#guideSound").onclick = () => { SFX.set(true); renderChrome(); SFX.go(); Guide.repeat(); };
   $("#soundBtn").onclick = () => { SFX.set(!SFX.on); renderChrome(); SFX.go(); if (SFX.on) Guide.repeat(); else Guide.hush(); };
   $("#skipBtn").onclick = skipJourney;
   addEventListener("keydown", e => { if (e.key === "Escape" && run) skipJourney(); });
   $("#homeBtn").onclick = goHome;
   $("#earthBtn").onclick = () => { state.scan = null; state.targetId = null; ctl.autoRotate = false; go("earth"); showEarthMode(true); };
   document.querySelectorAll("#lang button").forEach(b => (b.onclick = () => {
-    state.lang = b.dataset.l; renderChrome(); renderPanel(); if (!run) guideStage(state.stage);
+    state.lang = b.dataset.l; applyNames(); renderChrome(); renderPanel(); if (!run) guideStage(state.stage);
     if (state.stage === "verdict" && state.tab !== "camp") showEarthResults(rank(), false);
   }));
 
