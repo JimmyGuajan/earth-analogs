@@ -1,0 +1,4 @@
+data/raw/
+__pycache__/
+data/grid_cache.json
+*.pdf
