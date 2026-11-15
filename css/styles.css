@@ -331,6 +331,15 @@ body[data-stage="intro"] .guide { max-width: min(380px, calc(100vw - 48px)); }
 .guide-x:hover { color: var(--text); background: var(--surface-2); }
 .guide-x .icon { width: 14px; height: 14px; }
 .guide.folded .guide-bubble { display: none; }
+.guide-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.guide-actions[hidden] { display: none; }
+.guide-actions .btn { padding: 8px 14px; font-size: 13px; }
+/* the tour points at one thing at a time */
+.tour-spot { outline: 2px solid var(--target); outline-offset: 3px; border-radius: 10px; animation: spot 1.6s ease-in-out infinite; }
+@keyframes spot { 50% { outline-offset: 6px; } }
+.about-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 14px; }
+.about-row .about { flex: 1; margin-bottom: 0; }
+.about-row .mini-btn { padding: 8px 10px; }
 .guide-act { margin-top: 8px; padding: 8px 14px; font-size: 13px; }
 .guide-act[hidden] { display: none; }
 /* while sound is off, the header button invites the viewer to turn it on */
@@ -583,6 +592,8 @@ body.modal-open { overflow: clip; }
   .guide-bubble { font-size: 13px; padding: 8px 32px 8px 12px; }
   .guide-bubble p { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
   body[data-stage="earth"] .guide-bubble, body[data-stage="verdict"][data-tab="map"] .guide-bubble, body[data-stage="verdict"][data-tab="scan"] .guide-bubble { display: none; }
+  body.touring .guide .guide-bubble { display: block; }
+  body.touring .guide-bubble p { -webkit-line-clamp: unset; }
   body[data-stage="launch"] .terminal { left: 10px; right: 10px; width: auto; bottom: 200px; }
   body[data-stage="launch"] .terminal #termBody { min-height: 0; max-height: 16vh; font-size: 11px; padding: 8px 10px; }
   body[data-stage="launch"] .hud { top: auto; bottom: 60px; }

@@ -183,6 +183,7 @@
       const s = allSites().find(x => x.id === state.selectedId);
       const pos = state.origin ? rank().findIndex(x => x.site.id === state.origin.id) + 1 : 0;
       if (s) Guide.say(G.verdict(crewName(), s.name.split(" – ")[0]) + (pos ? " " + G.originRank(pos, allSites().length) : ""));
+      if (!touring) setGuideActions([{ label: T().tour.start, run: startTour }]);
       return;
     }
     const line = { intro: G.intro, earth: G.earth, crew: G.crew, dest: G.dest(crewName()), mission: G.mission, brief: G.brief }[stage];
@@ -193,6 +194,8 @@
     document.body.classList.remove("modal-open");
   }
   function go(stage) {
+    if (touring && stage !== "verdict") { touring = false; document.body.classList.remove("touring"); spot(null); }
+    if (stage !== "verdict") setGuideActions([]);
     if (state.peek && !["verdict", "earth"].includes(stage)) unpeek(false);
     closeModals();
     state.stage = stage; renderChrome(); layoutGlobe(); renderPanel();
@@ -788,7 +791,7 @@
     p.querySelectorAll(".tabs button").forEach(b => (b.onclick = () => {
       const prev = state.tab;
       state.tab = b.dataset.tab; renderVerdictPanel();
-      Guide.say(T().guide.tabs[state.tab]);
+      if (!touring) Guide.say(T().guide.tabs[state.tab]);
       $("#hint").hidden = state.tab !== "scan";
       if (state.peek) unpeek(true);
       else if (["camp", "map"].includes(prev) && prev !== state.tab) showEarthResults(rank(), true);
@@ -801,7 +804,8 @@
     ({ verdict: tabVerdict, top: tabTop, camp: tabCamp, map: tabMap, evidence: tabEvidence, scan: tabScan })[state.tab](results, t);
     const tab = state.tab;
     $("#tabBody").insertAdjacentHTML("afterbegin",
-      `<details class="about" ${helpOpen.has(tab) ? "open" : ""}><summary>${T().helpQ}</summary><p>${T().help[tab]}</p></details>`);
+      `<div class="about-row"><details class="about" ${helpOpen.has(tab) ? "open" : ""}><summary>${T().helpQ}</summary><p>${T().help[tab]}</p></details><button class="mini-btn" id="tourBtn">${T().tour.start}</button></div>`);
+    $("#tourBtn").onclick = startTour;
     $("#tabBody .about").addEventListener("toggle", e => (e.target.open ? helpOpen.add(tab) : helpOpen.delete(tab)));
     document.body.dataset.tab = tab;
     document.querySelectorAll("#tabBody .rank li").forEach(li => {
@@ -845,6 +849,67 @@
   const ICON_NO = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg>';
   function mchip(k, m, kind, tip) {
     return `<span class="mchip ${kind}" tabindex="0" data-tip="${esc(tip)}">${kind === "good" ? ICON_OK : ICON_NO}<span>${FL(k)}</span><b>${Math.round(m * 100)} %</b></span>`;
+  }
+
+  // ---------- guided tour of the verdict panel ----------
+  let touring = false;
+  function setGuideActions(list) {
+    const box = $("#guideActions");
+    box.innerHTML = "";
+    list.forEach(a => {
+      const b = document.createElement("button");
+      b.className = "btn" + (a.ghost ? " ghost" : ""); b.textContent = a.label; b.onclick = a.run;
+      box.appendChild(b);
+    });
+    box.hidden = !list.length;
+  }
+  function spot(el) {
+    document.querySelectorAll(".tour-spot").forEach(e => e.classList.remove("tour-spot"));
+    if (el) { el.classList.add("tour-spot"); el.scrollIntoView({ block: "nearest", behavior: reduced() ? "auto" : "smooth" }); }
+  }
+  function openTab(tab) {
+    const b = document.querySelector(`nav.tabs button[data-tab="${tab}"]`);
+    if (b && state.tab !== tab) b.click();
+  }
+  function startTour() {
+    if (touring || state.stage !== "verdict") return;
+    touring = true;
+    document.body.classList.add("touring");
+    $("#guide").classList.remove("folded"); $("#guide").hidden = false;
+    const S = () => T().tour.steps;
+    const tabBtn = k => document.querySelector(`nav.tabs button[data-tab="${k}"]`);
+    const steps = [
+      { text: () => S().panel, el: () => $("#panel"), tab: "verdict" },
+      { text: () => S().verdict, el: () => $("#tabBody .winner"), tab: "verdict" },
+      { text: () => S().chart, el: () => $("#tabBody .dumb"), tab: "verdict" },
+      { text: () => S().top, el: () => tabBtn("top"), tab: "top" },
+      { text: () => S().camp, el: () => tabBtn("camp"), tab: "camp" },
+      { text: () => S().map, el: () => tabBtn("map"), tab: "map" },
+      { text: () => S().evidence, el: () => tabBtn("evidence"), tab: "evidence" },
+      { text: () => S().scan, el: () => tabBtn("scan"), tab: "scan" },
+      { text: () => S().foot, el: () => $("#panel .p-foot"), tab: "verdict" },
+    ];
+    let i = 0;
+    const end = () => {
+      touring = false; document.body.classList.remove("touring");
+      spot(null); setGuideActions([]);
+      openTab("verdict");
+      store.set("tourDone", true);
+      Guide.say(T().tour.end);
+    };
+    const show = () => {
+      const st = steps[i];
+      openTab(st.tab);
+      spot(st.el());
+      Guide.say(st.text());
+      const last = i === steps.length - 1;
+      setGuideActions([
+        { label: last ? T().tour.done : `${T().tour.next} (${i + 1}/${steps.length})`, run: () => { if (last) end(); else { i++; show(); } } },
+        { label: T().tour.skip, ghost: true, run: end },
+      ]);
+      $("#guideActions button").focus();
+    };
+    show();
   }
 
   // ---------- processes, not only places ----------
