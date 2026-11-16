@@ -3,6 +3,12 @@
 
 NASA Space Apps Challenge 2026: *Identify Earth Locations that Analog the Permanent Moon Base Locations and Mars*
 
+**Team MIAUTECH:** Jimmy Guajan, Mary Claudio, Anderson Lema.
+
+- **Live app** (English first, Spanish one click away): https://jimmyguajan.github.io/earth-analogs/
+- **30-second demo video:** [English](https://jimmyguajan.github.io/earth-analogs/media/earth-analogs-demo-en.mp4) or [Spanish narration with English subtitles](https://jimmyguajan.github.io/earth-analogs/media/earth-analogs-demo-es.mp4)
+- **Submission text:** [docs/SUBMISSION.md](docs/SUBMISSION.md) (English, for the form) and [docs/SUBMISSION.es.md](docs/SUBMISSION.es.md) (Spanish copy for the team)
+
 Earth Analogs turns every place (an Earth site, a Moon or Mars landing site, or **any point you click**) into a 15-axis **environmental fingerprint** measured from open NASA data. It then tells you, with evidence, **where on Earth to rehearse your mission**.
 
 ## The experience
@@ -164,7 +170,7 @@ docs/SUBMISSION.md       Space Apps project text and 30-s video script
 - **Always beyond Earth:** vacuum, low gravity, cosmic rays and cold traps below 40 K.
 
 ## Use of Super Intelligence (SI)
-An AI coding assistant (Claude, by Anthropic) helped write the code (`js/`, `css/`, `index.html`), the data pipeline (`pipeline/`) and the documentation. The team reviewed the data choices, the scoring and the findings. The datasets in `data/` and `js/data.js` are computed by the pipeline from the NASA and partner sources listed above; no values are AI-generated. The app contains no AI-generated images, video or audio.
+An AI coding assistant (Claude, by Anthropic) helped write the code (`js/`, `css/`, `index.html`), the data pipeline (`pipeline/`) and the documentation. The team reviewed the data choices, the scoring and the findings. The datasets in `data/` and `js/data.js` are computed by the pipeline from the NASA and partner sources listed above; no values are AI-generated. The app contains no AI-generated images. The demo video is made from screen captures of the app; its narration is a synthetic voice (Microsoft Windows text-to-speech), stated on the video's end card and in the file metadata.
 
 ---
 

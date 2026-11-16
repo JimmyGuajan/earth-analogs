@@ -1,0 +1,23 @@
+1
+00:00:00,450 --> 00:00:03,589
+We are team MIAUTECH: Jimmy, Mary and Anderson.
+
+2
+00:00:03,639 --> 00:00:07,815
+Our challenge: find places on Earth that behave like the Moon and Mars base sites.
+
+3
+00:00:07,865 --> 00:00:09,302
+This is Earth Analogs.
+
+4
+00:00:09,352 --> 00:00:17,487
+Pick a base and a mission. NASA data compares 15 features, and the ship lands on Earth's best twin: why it matches, and what it can't simulate.
+
+5
+00:00:17,537 --> 00:00:21,887
+It also shows where NASA already trains, and untapped sites nobody uses yet.
+
+6
+00:00:21,937 --> 00:00:25,688
+Open and free, so tomorrow's crews can rehearse the Moon and Mars, here on Earth.

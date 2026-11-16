@@ -31,7 +31,7 @@
   const GEO_KIND = { basalt: "mapped", salts: "mapped", sediment: "mapped", ice: "measured", regolith: "measured" };
 
   const state = {
-    lang: (navigator.language || "es").startsWith("es") ? "es" : "en",
+    lang: ["en", "es"].includes(store.get("lang")) ? store.get("lang") : "en", // English first; a viewer's switch is remembered
     stage: "intro", body: "Moon", targetId: null, profile: null,
     mode: "match", tab: "verdict", selectedId: null, scan: null, scanBusy: false,
     crew: Object.assign({ name: "", role: "cmd" }, store.get("crew", {})), code: null,
@@ -1888,7 +1888,7 @@ _Earth Analogs · NASA Space Apps 2026 · ${new Date().toISOString().slice(0, 10
   $("#homeBtn").onclick = goHome;
   $("#earthBtn").onclick = () => { state.scan = null; state.origin = null; state.targetId = null; ctl.autoRotate = false; go("earth"); showEarthMode(true); };
   document.querySelectorAll("#lang button").forEach(b => (b.onclick = () => {
-    state.lang = b.dataset.l;
+    state.lang = b.dataset.l; store.set("lang", state.lang);
     if (state.scan?.scanned) { state.scan.name = state.lang === "es" ? "Punto escaneado" : "Scanned point"; state.scan.country = `${dec(state.scan.lat, 3)}°, ${dec(state.scan.lon, 3)}°`; }
     applyNames(); renderChrome(); renderPanel();
     if (touring) resumeTour?.(); else if (!run) guideStage(state.stage); // a tour carries on in the new language

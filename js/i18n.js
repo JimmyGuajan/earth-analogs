@@ -305,10 +305,10 @@ window.I18N = {
   },
   en: {
     tagline: "Where is the Moon… on Earth?",
-    heroTitle: "Find Earth's twin for every Moon & Mars base",
+    heroTitle: "Find Earth’s twin for every Moon & Mars base",
     heroSub: "Open data from NASA, ESA and JAXA to decide where on Earth to rehearse your mission.",
     start: "Start mission",
-    earthStart: "or start from Earth", demo: "See a result now: Shackleton's twin on Earth", globeLabel: "3D globe",
+    earthStart: "or start from Earth", demo: "See a result now: Shackleton’s twin on Earth", globeLabel: "3D globe",
     steps: ["Crew", "Destination", "Mission", "Journey", "Verdict"],
     chooseBody: "Which base are you preparing?",
     moon: "Moon", mars: "Mars",

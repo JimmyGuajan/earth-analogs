@@ -1,33 +1,40 @@
-# Space Apps 2026 – Project submission text (Earth Analogs)
+# Space Apps 2026 – Project submission (Earth Analogs, Team MIAUTECH)
 
-> Paste these sections into the Space Apps project page. Replace the links in [brackets] before you submit.
+> Copy each section into the field with the same name on the Space Apps project page. Everything in this file is in English, as the rules require. A Spanish copy for the team is in `SUBMISSION.es.md`; do not paste that one into the form.
+
+## Before pressing "Submit for Judging"
+- [ ] Deadline: **Sunday 15 November 2026, 23:59**, in the Team Owner's local time (Ecuador, UTC−5).
+- [ ] Open every link below in a private window and check that it plays or loads without signing in.
+- [ ] Paste each field, attach a screenshot if you like (`media/screenshot-verdict.png`, `media/screenshot-nasa.png`, under 10 MB each), tick the "Terms and Conditions" box and press **Submit for Judging**. Saving alone does not submit.
+- [ ] Optional: request a FortiGuard web-filter rating for `jimmyguajan.github.io` (category: Education; company name: N/A), so judges' networks do not block the site.
+
+## Team
+**MIAUTECH**: Jimmy Guajan, Mary Claudio, Anderson Lema.
 
 ## Project name
 **Earth Analogs: Find Earth's twin for every Moon & Mars base site**
 
-## High-level summary (≤ 200 words)
-Before astronauts build a base at the lunar south pole or drill for ice on Mars, they rehearse in places on Earth that behave like those worlds. Yet analog sites are rarely compared with a destination quantitatively, and new candidates are seldom searched for.
+## High-level project summary
+Before astronauts build a base at the lunar south pole or drill for ice on Mars, they rehearse in places on Earth that behave like those worlds. Yet analog sites are rarely compared with their destination in numbers, and new candidates are seldom searched for.
 
-Earth Analogs measures every place on the same 15 axes using open NASA data:
-- **Earth climate:** 25 years of NASA POWER.
-- **Relief:** LRO LOLA, MGS MOLA and the Copernicus DEM, measured with the same metric on three worlds.
-- **Ice:** LRO Diviner and the Mars Odyssey neutron map.
-- **Light:** an orbital insolation model.
-- **Terrain on Earth:** MODIS land-surface temperature (ground ice), JAXA ALOS PALSAR radar (loose regolith), ESA WorldCover, JRC Global Surface Water and Macrostrat geologic maps (basalt, salts, sediments).
+Earth Analogs measures the Moon, Mars and 45 Earth sites on the same 15 axes with open data: 25 years of NASA POWER climate, LRO LOLA, MGS MOLA and Copernicus relief, LRO Diviner and Mars Odyssey ice, MODIS ground temperature and vegetation, JAXA ALOS PALSAR radar, ESA WorldCover and Macrostrat geology.
 
-A guided 3D experience lets a planner pick a Moon or Mars base site and a mission goal, then "launch". A mission computer runs the analysis, a ship flies to Earth, and it lands on the best twin with an explained verdict: why the site was chosen and what it cannot simulate.
+A guided 3D journey lets a planner pick a base site and a mission goal, fly back to Earth and land on the best twin, with an explained verdict: why it matches and what it cannot simulate. The app also shows where NASA already trains and how our ranking places those sites, finds untapped analogs, builds 3-site campaigns that cover 90–96% of a target, paints a global similarity map, and fingerprints any point on Earth live.
 
-Earth Analogs also does five more things:
-- It paints a **global heat map** of the whole land surface and lists the most promising **uncatalogued zones**.
-- It surfaces **untapped analogs** nobody uses yet.
-- It builds **3-site campaigns** that cover 90–96% of a target.
-- It **fingerprints any clicked point on Earth live**: up to 13 of 15 axes, including vegetation, ground ice, radar regolith and lithology.
-- Its **reverse twin** mode tells you which Moon or Mars site any Earth place resembles.
+It matters because choosing the right place to rehearse saves time, money and risk before a crew leaves Earth.
 
-## Links
-- 30-s video / slides: [link]
+## Link to project demo
+- Video, English narration (28 s): https://jimmyguajan.github.io/earth-analogs/media/earth-analogs-demo-en.mp4
+- Same video with Spanish narration and English subtitles (28 s): https://jimmyguajan.github.io/earth-analogs/media/earth-analogs-demo-es.mp4
 
-## Project details
+## Link to final project
+- Live app (opens in English; Spanish is one click away): https://jimmyguajan.github.io/earth-analogs/
+- One click to a result: https://jimmyguajan.github.io/earth-analogs/#t=moon_shackleton&p=power&m=match
+- Source code, data pipeline and tests: https://github.com/JimmyGuajan/earth-analogs
+
+## Detailed project description
+**What it does.** Earth Analogs answers one question for mission planners, scientists and students: *which place on Earth best rehearses this Moon or Mars base, for this mission, and what can it not rehearse?* A visitor registers as a crew member (commander, geology or engineering), picks a base site (3 on the Moon, 6 on Mars) and a mission (ISRU, caves, habitat, mobility, astrobiology, polar power or general), and flies back to Earth while the mission computer runs the analysis. The ship lands on the best twin and the verdict panel explains the result. A guided tour, a final quiz and a mission certificate turn the analysis into a learning experience.
+
 **How it works**
 1. **Earth fingerprint.** NASA POWER climatology gives six axes:
    - aridity, from PRECTOTCORR and RH2M
@@ -86,7 +93,15 @@ Analog selection becomes a recommender problem with measured, comparable fingerp
 - NASA POWER's grid is about 0.5°.
 - Scores support decisions. They do not certify sites.
 
-## NASA data used
+**What we hope to achieve**
+- Give analog-site selection a transparent, repeatable yardstick that any team can audit and extend.
+- Point field science toward untapped places, including accessible ones in Latin America such as the Galápagos lava fields and the Chimborazo ash plains.
+- Let students and the public see how open NASA data turns into a real planning decision, in English and Spanish.
+
+## Use of Super Intelligence (SI)
+An AI coding assistant (Claude, by Anthropic) helped write the code (`js/`, `css/`, `index.html`), the data pipeline (`pipeline/`), the tests (`tests/`) and this text. The team chose the challenge approach, the data sources, the scoring and the findings, and reviewed every result. The datasets in `data/` and `js/data.js` are computed by the pipeline from the NASA and partner sources listed below; no data values are AI-generated. The app contains no AI-generated images. The demo video is made from screen captures of the app; its narration is a synthetic voice (Microsoft Windows text-to-speech), which the video's end card and file metadata state.
+
+## NASA data
 - NASA POWER Climatology API (2001–2025): https://power.larc.nasa.gov
 - LRO LOLA LDEM_16; MGS MOLA MEGDR; LRO Diviner Polar Resource Product; Mars Odyssey GRS/NS epithermal map, all from the PDS Geosciences Node: https://pds-geosciences.wustl.edu
 - MODIS Terra MOD13Q1 NDVI through the ORNL DAAC MODIS Web Service: https://modis.ornl.gov/data/modis_webservice.html
@@ -95,23 +110,26 @@ Analog selection becomes a recommender problem with measured, comparable fingerp
 - NASA Moon Trek and Mars Trek (LRO WAC mosaic, Viking MDIM 2.1): https://trek.nasa.gov
 - NASA Image and Video Library (credited training photos) and NASA's planetary-analogs overview: https://images.nasa.gov, https://science.nasa.gov/solar-system/planetary-analogs/
 - Mission measurements cited: MRO SHARAD, MSL REMS and RAD, Mars 2020 MEDA, LADEE, LCROSS, LRO CRaTER, LRO Mini-RF
+- NASA EPIC (DSCOVR) natural-colour Earth images, shown live during the journey: https://epic.gsfc.nasa.gov
+- NASA Image and Video Library, for credited photos of NASA analog training: https://images.nasa.gov
+- NASA's planetary-analogs overview and analog program pages (Haughton-Mars Project, Desert RATS, NEEMO, HI-SEAS, HERA and CHAPEA): https://science.nasa.gov/solar-system/planetary-analogs/
 
-## Other space agency / open data
+## Space agency partner data and other references
 - Copernicus GLO-90 DEM (ESA) through the Open-Meteo elevation API
 - ALOS PALSAR annual mosaic (JAXA), ESA WorldCover 2021 and JRC Global Surface Water, through Microsoft Planetary Computer (a Space Apps global offer): https://planetarycomputer.microsoft.com
 - Macrostrat geologic map units (CC-BY 4.0): https://macrostrat.org
 - Chandrayaan-1 M3 (ISRO) and Kaguya (JAXA), cited in the target evidence
+- Live ISS position: https://wheretheiss.at; place names for scanned points: BigDataCloud reverse geocoding
+- Site photos: Wikimedia Commons (author and licence shown with each photo); site summaries: Wikipedia (CC BY-SA)
+- 3D globe: globe.gl and three.js (MIT licence); fonts: Inter, Space Grotesk and JetBrains Mono (SIL Open Font License) through Google Fonts
+- The app uses the word "NASA" and credited NASA photos only; it contains no NASA logos, insignia or mission patches. The crew patch in the app is our own design.
 
-## Use of AI
-An AI coding assistant (Claude) helped write the code, the data pipeline and this text. The team reviewed the data choices and the scoring.
-
----
-
-## 30-second video script
-| Time | On screen | Voice |
+## Demo video script (as recorded, 28 s)
+| Time | On screen | Voice (English version) |
 |---|---|---|
-| 0–5 s | Rotating Earth, title "Where is the Moon… on Earth?" | "Before we live on the Moon, we rehearse on Earth. But which place on Earth is *most* like the Moon?" |
-| 5–12 s | 3D Moon; pick Shackleton and the Polar light mission; Launch; the mission computer types Diviner and LOLA numbers | "Earth Analogs measures the Moon with LRO data and the Earth with 25 years of NASA POWER climate." |
-| 12–20 s | The ship flies to Earth, score towers rise, and it lands; verdict card | "Based on this data analysis, here is the best place on Earth to rehearse, and what it can't simulate." |
-| 20–25 s | Campaign tab: arcs between 3 sites at 96% | "No single place is the Moon, so it builds the best 3-site campaign." |
-| 25–30 s | Scan tab: click on Ecuador | "Click anywhere and it becomes a candidate in seconds. Earth Analogs." |
+| 0–3 s | Earth globe, "Team MIAUTECH" title | "We are team MIAUTECH: Jimmy, Mary and Anderson." |
+| 3–7 s | The 3D Moon at the Shackleton ridge | "Our challenge: find places on Earth that behave like the Moon and Mars base sites." |
+| 7–9 s | The app's opening screen | "This is Earth Analogs." |
+| 9–17 s | Mission choice, mission-control GO poll, NASA EPIC view of Earth, landing photo, verdict panel | "Pick a base and a mission. NASA data compares 15 features, and the ship lands on Earth's best twin: why it matches, and what it can't simulate." |
+| 17–21 s | "Where does NASA train?" ranking and the Top 10 | "It also shows where NASA already trains, and untapped sites nobody uses yet." |
+| 21–28 s | 3-site campaign arcs, global similarity map, end card with the link | "Open and free, so tomorrow's crews can rehearse the Moon and Mars, here on Earth." |
