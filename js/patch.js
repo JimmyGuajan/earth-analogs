@@ -1,7 +1,7 @@
 /* Earth Analogs – mission patch and mission certificate, drawn on canvas
  * with the page's own colour tokens, so they match the interface. */
 (function (global) {
-  const tok = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const tok = name => getComputedStyle(document.body).getPropertyValue(name).trim(); // body: it carries the destination colour (data-dest)
   const C = () => ({
     bg: tok("--bg"), surface: tok("--surface"), surface2: tok("--surface-2"), line: tok("--line-strong"),
     text: tok("--text"), muted: tok("--muted"), star: tok("--star"),
